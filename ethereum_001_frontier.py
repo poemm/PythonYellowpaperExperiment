@@ -90,3 +90,44 @@ def KEC512(bytes_):
 # last item of a sequence
 def l(x):
   return x[len(x)-1]
+
+
+
+######################################
+# 4. Blocks, State, and Transactions #
+######################################
+
+
+
+#################
+# 4.1 World State
+
+# sigma (i.e. greek letter "𝛔") is the world state, maps storage tree addresses/keys to their Account/leaf instance
+# world state is usually implemented with a "state database" of key-value pairs of hashes to their values
+# we define our state tree as a dict: address or key -> leaf value, and as a root node as described in appx D
+# The state tree includes the underlying tree, accessed through root_node, see appx D for how we implement the tree nodes
+class StateTree(dict):
+  def __init__(self, leafs={}, memoized_tree=None):
+    dict.__init__(self, leafs)            # state leafs are in a dict
+    self.memoized_tree = memoized_tree    # yellowpaper appx D suggests memoizing the tree and hashes
+    #self.updated = set()                  # all changed leaf addresses/keys, useful when remerkleizing/rememoizing
+  def checkpoint(self): # section 6.2 discusses checkpointing the state
+    # a shallow copy of state leafs, but reuses existing memoized_tree
+    # this is useful in preparation for revert, avoiding a full deep copy
+    # this is expensive in space and time once the state gets big, since even a shallow copy of a big hash table is expensive, and must copy each one, including storage
+    copied = StateTree(self.copy(), self.memoized_tree)
+    if type(next(iter(self)))==Account: # if account tree, then also shallow copy each storage tree
+      for k in self:
+        copied[k].storage = copied[k].storage.copy()
+    return copied
+  def __setitem__(self, k, v):   # override setting with brackets, eg sigma[a] = my_account
+    # deep copy modifiable parts, so can write in a revertable copy
+    #if not super().__contains__(k):
+    #  self.updated.add(k)
+    if type(v)==Account:
+      super().__setitem__(k, Account(v.n,v.b,v.s[:],v.c,v.bytecode,v.storage,v.address) )
+    else:
+      super().__setitem__(k,v[:])
+  def __delitem__(self, key):   # override del, eg del sigma[a]
+    #self[key] = None
+    super().__delitem__(key)   # call parent classes del, since `del self[k]` would recurse
