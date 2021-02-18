@@ -131,3 +131,13 @@ class StateTree(dict):
   def __delitem__(self, key):   # override del, eg del sigma[a]
     #self[key] = None
     super().__delitem__(key)   # call parent classes del, since `del self[k]` would recurse
+
+def StateTree_merkleize(sigma):
+  for k in sigma:
+    if sigma[k].storage and len(sigma[k].storage):
+      print("StateTree_merkleize() at key",k.hex())
+      sigma[k].s = TRIE(y(sigma[k].storage))
+      print("StateTree_merkleize() ",sigma[k].s.hex())
+  stateRoot = TRIE(y(sigma))
+  #print("StateTree_merkleize() stateRoot",stateRoot.hex())
+  return stateRoot
