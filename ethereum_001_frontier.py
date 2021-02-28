@@ -166,4 +166,44 @@ def Lstar(func,keyvalpairs):
     ret[pair[0]] = pair[1]
   return ret
 
+# e.g. Lstar(L_I,sigma)
+
+# simple account ("non-contract account") has codeHash of empty bytecode
+# emptyset ("∅","non-existent") denotes when account address is not in the world state, which is different from EMPTY() below
+
+# this is unused, instead implemented in appx D using functions BE, RLP, TRIE
+def p(a,sigma):
+  # note: maybe members .s and .c should have default values for non-contract account
+  return KEC(a), RLP( (sigma[a].n, sigma[a].b, sigma[a].s, sigma[a].c) )
+
+# world state collapse function
+# this function seems useless
+# the name "L_S" has a name collision with a function in appendix F, but we don't use this one so we let that one overwrite this one
+def L_S(sigma):
+  return {p(a) for a in sigma}
+
+# account validity function
+def v(x):
+  if type(x.n)==int and 0<=x.n and x.n<2**256 and \
+     type(x.b)==int and 0<=x.b and x.b<2**258 and \
+     type(x.s)==bytes and len(x.s)==32 and \
+     type(x.b)==bytes and len(x.b)==32:
+    return True
+  else:
+    return False
+
+# empty account
+# note: contract accounts may have empty account state
+def EMPTY(sigma,a):
+  if sigma[a].c == KEC(b'') and sigma[a].n==0 and sigma[a].b==0:
+    return True
+  else:
+    return False
+
+# dead account
+def DEAD(sigma,a):
+  if a not in sigma or EMPTY(sigma,a):
+    return True
+  else:
+    return False
 
