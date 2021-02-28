@@ -141,3 +141,29 @@ def StateTree_merkleize(sigma):
   stateRoot = TRIE(y(sigma))
   #print("StateTree_merkleize() stateRoot",stateRoot.hex())
   return stateRoot
+
+# a (i.e. the letter "a") denotes an Account instance
+class Account:
+  def __init__(self,nonce,balance,storageRoot,codeHash,bytecode,storage,address):
+    self.n=         nonce       # number of txs sent or contract creations
+    self.b=         balance     # number of wei
+    self.s=         storageRoot # root hash of self.state
+    self.c=         codeHash    # KEC of bytecode
+    # the rest are not in the spec, but we need it
+    self.bytecode=  bytecode    # bytecode executed when this account gets a message call, where bytecode is empty for non-contract account
+    self.storage=   storage     # instance of StateTree, mapping mapping 256-bit keys -> 256-bit values
+    self.address=   address     # 20-byte address
+
+# a generic collapse function
+def L_I(k,v):
+  return KEC(k),RLP(v)
+
+# collapse function for a 
+def Lstar(func,keyvalpairs):
+  ret = {}
+  for key,val in keyvalpairs.items():
+    pair = func(key,val)
+    ret[pair[0]] = pair[1]
+  return ret
+
+
