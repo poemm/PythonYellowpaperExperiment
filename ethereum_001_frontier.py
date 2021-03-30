@@ -207,3 +207,28 @@ def DEAD(sigma,a):
   else:
     return False
 
+
+#####################
+# 4.2 The Transaction
+
+# two types of txs: message call and contract creation
+
+# T denotes an instance of Transaction
+class Transaction:
+  def __init__(self,nonce,gasPrice,gasLimit,to,value,v,r,s,init,data):
+    self.n=     nonce       # number of txs send by the sender
+    self.p=     gasPrice    # number of wei to pay per unit of gas
+    self.g=     gasLimit    # maximum gas for this tx
+    self.t=     to          # address of message call recipient, or empty bytearray for contract creation
+    self.v=     value       # number of wei to be transferred to message call's recipient, or endowment of contract creation
+    self.w=     v           # signature stuff, see appx F
+    self.r=     r           # signature stuff, see appx F
+    self.s=     s           # signature stuff, see appx F
+    self.i=     init        # EVM bytecode for account initialisation procedure and returns the account code; arbitrarily long; empty for message call
+    self.d=     data        # byte array specifying input data for message call; arbitrarily long; empty for contract creation
+    # the following is not in spec, but referenced in spec
+    self.o=     None        # original transactor
+
+
+
+
