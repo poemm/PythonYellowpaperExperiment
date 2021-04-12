@@ -229,6 +229,32 @@ class Transaction:
     # the following is not in spec, but referenced in spec
     self.o=     None        # original transactor
 
+# contract's code can execute from a message call or from internal execution
+# sender address can be recovered from a tx, see appendix F function S(T)
+
+# transaction collapse function
+# prepare tx for RLP
+def L_T(T):
+  if not T.t:
+    return (T.n, T.p, T.g, T.t, T.v, T.i, T.w, T.r, T.s)
+  else:
+    return (T.n, T.p, T.g, T.t, T.v, T.d, T.w, T.r, T.s)
+
+# transaction validity function
+# this function name is not given in the yellowpaper, so we call it valid_transaction()
+def valid_transaction(T):
+  if type(T.n)==int and 0<=T.n and T.n<2**256 and \
+     type(T.v)==int and 0<=T.v and T.v<2**256 and \
+     type(T.p)==int and 0<=T.p and T.p<2**256 and \
+     type(T.g)==int and 0<=T.g and T.g<2**256 and \
+     type(T.w)==int and 0<=T.w and T.w<2**5 and \
+     type(T.r)==int and 0<=T.r and T.r<2**256 and \
+     type(T.s)==int and 0<=T.s and T.s<2**256 and \
+     type(T.t)==bytes and (len(T.t)==0 or len(T.t)==20) and \
+     type(T.i)==bytes and type(T.d)==bytes:     # no length restrictions on T.i and T.d
+    return True
+  else:
+    return False
 
 
 
