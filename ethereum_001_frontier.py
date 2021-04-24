@@ -294,4 +294,36 @@ class Block:
     self.t=     totalDifficulty # total difficulty, which is sum of difficulties from genesis, needed in section 10
 
 
+# 4.3.1 Transaction receipt
+
+# B.R denotes block B's tx reciepts
+# B.R[i] denotes the ith tx receipt
+# receipts hash root is from index-keyed trie of reciepts
+
+# R denotes an instance of Receipt
+class Receipt:
+  def __init__(self, cumulativeGasUsed, bloomFilterFromLogs, logs, statusCode, preRoot):
+    self.u=     cumulativeGasUsed       # cumulative gas used in block after this tx
+    self.b=     bloomFilterFromLogs     # bloom filter for logs
+    self.l=     logs                    # sequence of instances of Log (see below) from execution of this tx 
+    self.z=     statusCode              # status code returned by this tx
+    # rest is not in the spec, but later associated with the receipt, at least for frontier
+    self.preRoot=   preRoot             # state root after the end of previous tx
+
+# receipt collapse function
+# prepare receipt for RLP
+def L_R(R):
+  return (R.preRoot, R.u, R.b, R.l) # TODO: in a later hardfork, first element is bytes([0]*32)
+
+# this function name is not in the yellowpaper
+def receipt_validity(R):
+  if type(R.z)==int and 0<=R.z and \
+     type(R.u)==int and 0<=R.u and \
+     type(R.b)==bytes and len(R.b)==256 and\
+     type(R.l) in {list, tuple} and validity_logs(R.l):
+    return True
+  else:
+    return False
+
+
 
