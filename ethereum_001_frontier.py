@@ -257,4 +257,41 @@ def valid_transaction(T):
     return False
 
 
+###############
+# 4.3 The Block
+
+# H denotes block header
+# T denotes list of transactions
+# U denotes ommers, but book's definition in section 4.3 is too strict, use 11.3
+
+# H denotes an instance of BlockHeader
+class BlockHeader:
+  def __init__(self, parentHash, ommersHash, beneficiary, stateRoot, transactionsRoot, receiptsRoot, logsBloom, difficulty, number, gasLimit, gasUsed, timestamp, extraData, mixHash, nonce):
+    self.p=     parentHash      # KEC(parent's block header)
+    self.o=     ommersHash      # KEC(uncle block header list)
+    self.c=     beneficiary     # miner's address
+    self.r=     stateRoot       # world state root hash
+    self.t=     transactionsRoot    # root hash of trie of txs
+    self.e=     receiptsRoot    # root hash of trie of receipts
+    self.b=     logsBloom       # bloom filter of logs, see below
+    self.d=     difficulty      # integer difficulty of this block
+    self.i=     number          # number of ancestor blocks, including genesis
+    self.l=     gasLimit        # current gas limit for a block
+    self.g=     gasUsed         # total gas used in this block
+    self.s=     timestamp       # unix time()
+    self.x=     extraData       # arbitrary 32 bytes
+    self.m=     mixHash         # 32 byte proof of work
+    self.n=     nonce           # 8 byte value used for mining
+
+# B will be used as an instance of Block
+class Block:
+  def __init__(self, header, transactions, ommers, receipts, totalDifficulty):
+    self.H=     header          # instance of BlockHeader
+    self.T=     transactions    # list of transactions
+    self.U=     ommers          # list of ommer headers
+    # rest is not in the spec, but later associated with the block
+    self.R=     receipts        # list of receipts, indexed by corresponding tx index
+    self.t=     totalDifficulty # total difficulty, which is sum of difficulties from genesis, needed in section 10
+
+
 
