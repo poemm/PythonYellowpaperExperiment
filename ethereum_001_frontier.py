@@ -326,4 +326,34 @@ def receipt_validity(R):
     return False
 
 
+# O denotes an instance of Log
+class Log():
+  def __init__(self):
+    self.a=     loggersAddress
+    self.t=     topicsList
+    self.d=     dataBytes
+
+def validity_logs(O):
+  return True # TODO see yellowpaper
+
+# bloom filter function over logs
+# note: name collision with function in appx H.1 involving EVM memory
+def M(O):
+  ret=bytes([0]*256)
+  for x in {O.a}+O.t:
+    ret = ret | M3_2048(x) #TODO what is bitwise or?
+  return ret
+
+def M3_2048(x):
+  y='0'*2048
+  for i in [0,2,4]:
+    y[B(x,i)]=1
+  return y.bytes() #TODO a guess
+
+def B(x,i,y):
+  return m(x,i)
+
+def m(x,i):
+  return int(KEC(x)[i,i+1]) % 2048
+
 
