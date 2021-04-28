@@ -357,3 +357,14 @@ def m(x,i):
   return int(KEC(x)[i,i+1]) % 2048
 
 
+# 4.3.2 Holistic Validity
+
+# TODO
+
+# explains values for H.r, H.o, H.t, H.e, H.b
+# e.g. H.r = TRIE(L_S(Pi(sigma,B)))
+
+# note: the function p has name collision with section 4.1
+
+
+
