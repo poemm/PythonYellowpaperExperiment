@@ -367,4 +367,27 @@ def m(x,i):
 # note: the function p has name collision with section 4.1
 
 
+# 4.3.3 Serialization
+
+# header collapse function
+# prepare receipt for RLP
+def L_H(H):
+  # TODO
+  return ()
+
+# block collapse function
+# prepare block for RLP
+def L_B(B):
+  # TODO
+  return ()
+
+# TODO: more stuff like header types
+
+# 4.3.4 Block Header Validity
+
+# TODO
+def V(H):
+  return True
+
+
 
