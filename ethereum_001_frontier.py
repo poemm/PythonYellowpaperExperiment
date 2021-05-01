@@ -391,3 +391,27 @@ def V(H):
 
 
 
+
+######################
+# 5. Gas and Payment #
+######################
+
+
+
+
+
+############################
+# 6. Transaction Execution #
+############################
+
+# Upsilon (greek letter 𝚼) is the state transition function, defines the execution of a tx
+
+# initial tx validity tests:
+# (1) tx is well-formed RLP (no trailing bytes)
+# (2) valid signature
+# (3) valid nonce
+# (4) gas limit >= initial used gas
+# (5) sender's balance >= up-front payment v_0
+
+
+
