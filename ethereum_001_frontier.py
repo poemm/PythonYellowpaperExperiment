@@ -414,4 +414,22 @@ def V(H):
 # (5) sender's balance >= up-front payment v_0
 
 
+# 6.1 Substate
+
+# transaction execution accrues info which is acted upon immediately following the tx
+
+# accrued transaction substate
+# A denotes an instance
+class AccruedSubstate:
+  def __init__(self,self_destruct_set,log_series,touched_accounts,refund_balance):
+    self.s = self_destruct_set  # accounts which will be discarded following tx's completion
+    self.l = log_series         # series of indexed checkpoints in VM code execution
+    self.t = touched_accounts   # set of touched accts, empty ones will be deleted, not in frontier
+    self.r = refund_balance     # from SSTORE to set from nonzero to zero, partially offsets the execution cost
+
+# empty accrued substate
+def A0():
+  return AccruedSubstate(set(),[],set(),0)
+
+
 
