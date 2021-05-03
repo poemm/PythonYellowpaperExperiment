@@ -432,4 +432,154 @@ def A0():
   return AccruedSubstate(set(),[],set(),0)
 
 
+# 6.2 Execution
+
+# g_0 is the intrnisic gas, required to be paid before execution
+def g_0(T):
+  ret = 0
+  #print("g_0",T.i,T.d,T.i+T.d)
+  for i in T.i+T.d:
+    if i==0:
+      ret += G["txdatazero"]
+    else:
+      ret += G["txdatanonzero"]
+  if not T.t:
+    #ret += G["txcreate"]              # not in frontier
+    pass
+  ret += G["transaction"]
+  return ret
+
+# up-front cost
+def v_0(T):
+  return T.g*T.p+T.v
+
+def transaction_validity(sigma,B,T):
+  # return values: whether tx is valid, and also senderaddy (which is expensive to recover so we do it once)
+  ST = S(T)     # recover sender address
+  if (ST and
+      ST in sigma and
+      T.n == sigma[ST].n and        # nonce mismatch
+      g_0(T) <= T.g and          # intrinsic gas (tx + creation + calldata cost) <= tx gas limit
+      v_0(T) <= sigma[ST].b and     # up-front cost unavailable
+      T.g <= B.H.l-l(B.R).u):    # tx gas limit <= block gas limit - gas used so far in this block
+    return True, ST
+  else:
+    return False, ST
+
+debug_Upsilon = 1
+# execute a tx, both message call and contract creation
+def Upsilon(sigma,
+            B,      # current block, not in spec for frontier
+            T,      # current tx
+            recentblocks): # not in spec, dictionary with 256 recent blocks used by BLOCKHASH
+  if verbose: print("Upsilon()")
+  #print("Upsilon()")
+  #print(L_T(T))
+  #print("price,limit,to,value",T.p,T.g,T.t.hex(),T.v)
+
+  # 1. tx validity, including recovering sender which is expensive
+  valid, senderaddy = transaction_validity(sigma,B,T)
+  if not valid:
+    print("Upsilon() ERROR transaction invalid")
+    return sigma, 0, [], 2, A0()  # TODO: fourth val is error code for invalid sig
+
+  # there can't be invalid tx after this point, but can be errors like OOG
+
+  #if 1:
+  if debug_Upsilon:
+    print("Upsilon() Balances before:")
+    from_ = senderaddy
+    to = T.t
+    print("Upsilon() from",from_.hex(), sigma[from_].b, sigma[from_].n)
+    print("Upsilon() to", to.hex(), end="")
+    if to in sigma:
+      print(" ",sigma[to].b)
+    else:
+      print(" 0")
+    print("Upsilon() miner", B.H.c.hex(), end="")
+    if B.H.c in sigma:
+      print(" ",sigma[B.H.c].b)
+    else:
+      print(" 0")
+    print("Upsilon() up-front cost", T.g*T.p)
+
+  # 2. gas and tx stuff
+  T.o = senderaddy # original transactor
+  # in yellowpaper, sigma_0, sigmastar, sigmaprime are the "checkpoint states". But earlier states are never needed again, so there is no need to checkpoint. So we just rename the variable sigma. Reversion checkpoints are needed inside Lambda() and Omega().
+  sigma_0 = sigma
+  # update nonce and balance
+  sigma_0[senderaddy].n += 1 # increment nonce
+  sigma_0[senderaddy].b -= T.g*T.p # pay up-front costs
+  g = T.g-g_0(T) # gas remaining for this tx
+  print("Upsilon() gas remaining after up-front costs",g)
+
+  # 3. execute transaction to get provisional state sigma_p, remaining gas gprime, accrued substate A, status code z
+  if not T.t: # contract creation, bool arg not in frontier, z retrun not in frontier
+    sigma_P,gprime,A,z,_ = Lambda(sigma_0,senderaddy,T.o,g,T.p,T.v,T.i,0,True,B.H,recentblocks)
+    #print("ret from Lambda",sigma_P=={},gprime,A,z)
+    #sigma_P,gprime,A,z = sigma_0,max(0,g-G["txcreate"]),A0(),1
+    #print("ret from Lambda",sigma_P=={},gprime,A,z)
+  else: # message call, bool arg not in frontier, z return not in frontier, one of the T.v not in frontier I think
+    sigma_P,gprime,A,z,_ = Omega(sigma_0,senderaddy,T.o,T.t,T.t,g,T.p,T.v,T.v,T.d,0,True,B.H,recentblocks)
+  # ignore the fifth return value, which is output bytearray which is not needed here
+
+  # 4. handle gas payment and refund
+  # increment refund counter for self-destructed accounts
+  #A_rprime = A.r
+  #for i in A.s:
+  #  A_rprime += R["selfdestruct"]   # in frontier, this is done in function SUICIDE
+  # determine gas refund gstar, capped by half of the total amount used T.g-gprime
+  #gstar = gprime + min((T.g-gprime)//2,A_rprime)
+  print("Upsilon (T.g-gprime)//2, A.r",(T.g-gprime)//2,A.r)
+  gstar = gprime + min((T.g-gprime)//2,A.r)
+  # checkpoint, but we don't checkpoint, just shallow copy
+  sigmastar = sigma_P
+  # apply gas payment to create pre-final state
+  sigmastar[senderaddy].b += gstar*T.p
+  m = B.H.c # miner's address
+  if m not in sigmastar:
+    sigmastar[m] = Account(0,0,TRIE({}),KEC(b''),b'',StateTree(),m)
+  sigmastar[m].b += (T.g-gstar)*T.p
+  print("miner gets",(T.g-gstar)*T.p)
+
+  # 5. create final state sigmaprime by deleting all accounts in the self-destruct set A.s or that are touched and empty
+  sigmaprime = sigmastar
+  for addy in A.s:  # self-destruct set                 # note: if miner is in self-destruct set, then delete it too, this could be an edge-case for bugs
+    #print("deleting",addy.hex())
+    del sigmaprime[addy]
+  # dead stuff is not in frontier
+  #for addy in A.t:  # touched accts
+  #  if DEAD(sigmaprime, addy): # check touched accts for being dead
+  #    if addy in sigmaprime:
+  #      sigmaprime.removed.add(addy)
+  #      del sigmaprime[addy]
+  # note: this stuff is supposedly needed later for receipts, state validation, and nonce validation. So just append it to the output, and append A too
+  Upsilong = T.g-gstar  # total gas used in tx
+  Upsilonl = A.l        # log items from tx
+  Upsilonz = z          # status codes from tx, not in frontier
+
+  #if 1: #debug_Upsilon:
+  if debug_Upsilon:
+    print("Upsilon() gas","g_0(T)",g_0(T),"g",g,"T.g,T.p,T.g*T.p",T.g,T.p,T.g*T.p,"gprime",gprime,"gstar",gstar,"Upsilong",Upsilong)
+
+    print("Upsilon() Balances after:")
+    print("Upsilon() from_",from_.hex())
+    if from_.hex()[0:2]=="3d":  # debugging 49018
+      print("Upsilon() from",sigmaprime[from_].b)
+      #sigmaprime[from_].b = 0x43d67c65ceb4a82e
+      #print("Upsilon() from",sigmaprime[from_].b)
+    print("Upsilon() from",from_.hex(), sigmaprime[from_].b, sigmaprime[from_].n)
+    print("Upsilon() to", to.hex(), end="")
+    if to in sigmaprime:
+      print("  ",sigmaprime[to].b)
+    else:
+      print("  -")
+    print("Upsilon() miner", B.H.c.hex(), end="")
+    if B.H.c in sigmaprime:
+      print(" ",sigmaprime[B.H.c].b)
+    else:
+      print(" 0")
+
+
+  return sigmaprime, Upsilong, Upsilonl, Upsilonz, A
 
