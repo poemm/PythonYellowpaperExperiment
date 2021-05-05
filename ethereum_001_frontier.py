@@ -734,3 +734,16 @@ def Lambda(sigma,   # snapshot state and temporary state
   z = 0 if (not sigmastarstar) or gstarstar<c else 1  # status code, including whether OOG, note: why not use F?, z not in frontier
   return sigmaprime, gprime, A, z, o_    # z not in frontier
 
+
+# 7.1 Subtleties
+
+# while init is executing, new address exist but with no code
+# - EXTCODESIZE should return 0, and CODESIZE should return len(i)
+# - message calls to address should execute no code
+# - SELFDESTRUCT in init, then account is deleted before tx is completed
+# - STOP or returns empty, then account is zombie (no code, balance locked)
+
+
+
+
+
