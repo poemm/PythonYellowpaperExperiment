@@ -583,3 +583,154 @@ def Upsilon(sigma,
 
   return sigmaprime, Upsilong, Upsilonl, Upsilonz, A
 
+
+
+
+########################
+# 7. Contract Creation #
+########################
+
+debug_Lambda = 1
+
+# Lambda (i.e. greek letter 𝚲) is the contract creation function
+# note: spec has typo, we return five values
+def Lambda(sigma,   # snapshot state and temporary state
+           s,       # sender address
+           o,       # original transactor
+           g,       # available gas
+           p,       # gas price
+           v,       # endowment
+           i,       # EVM init code bytearray
+           e,       # present depth of message-call/contract-creation stack
+           w,       # permission to modify the state, not in frontier
+           H,       # not in spec, block header info for opcodes COINBASE, TIMESTAMP, NUMBER, DIFFICULTY, GASLIMIT
+           recentblocks): # not in spec, dictionary with 256 recent blocks used by BLOCKHASH
+  # returns: new state sigmaprime, remaining gas gprime, accrued substate A, error codes z, and output bytearray o_, but z is not part of frontier, not sure about o_
+  if verbose: print("Lambda()",g,v,p)
+  #print("Lambda()")
+  if debug_Lambda:
+    print("Lambda()",g,p,v)
+
+  # 1. compute address of new contract
+  sender = sigma[s]
+  a = KEC(RLP((s,sender.n-1)))[12:32]
+  if debug_Lambda:
+    print("Lambda() created address",a.hex())
+    print("Lambda() created address already in state",a in sigma)
+
+  # 2. get account's pre-existing balance, if any
+  #   note: the new address can have preexisting value, e.g precompute where contract will be created, then send money there, then create the account, but the account should have nonce 0 unless there is a hash collision
+  if a in sigma:
+    vprime = sigma[a].b
+  else:
+    vprime = 0
+
+  # 3. create mutated state sigmastar as a deepcopy of sigma (we deviate from spec and deepcopy only the active state)
+
+  # 4. increment/decrement receiver's/sender's balances by value sent
+  # create/wipe account at new address
+  sigma[a] = Account(0, v+vprime, TRIE({}), KEC(b''),b'',StateTree(),a)     # nonce changes to 1 in homestead
+  #acct = sigmastar[a]
+  #print("new contract",acct.n,acct.b,acct.s,acct.c)
+  #print(v,vprime,type(v),type(vprime),v+vprime)
+  # note: if there is an existing account at a, will overwrite it here or when applying checkpoint state
+  # decrement sender balance, overwrite previous in preparation for revert
+  sigma[s].b -= v #= Account(sender.n,sender.b-v,sender.s,sender.c,sender.bytecode,sender.storage,sender.address)
+  """ not in frontier
+  if s not in sigmastar and v==0:
+    # note: when is this possible? The case of both s not in state and v!=0 is impossible? Anyway, if account at s missing, then it is already empty. This may be a source of edge cases and bugs.
+    pass
+  else:
+    #sender = sigmastar[s]
+    astar = Account(sender.n,sender.b,sender.s,sender.c,sender.bytecode,sender.storage,sender.address)
+    astar.b -= v
+  """
+
+  sigmastar = sigma.copy() #.checkpoint()  # TODO: checkpoint
+
+  # 5. Execute init code
+  #print("code",i.hex())
+  I = ExecutionEnvironment(a,o,p,b'',s,v,i,H,e,w,recentblocks)  # different in frontier
+  sigmastarstar,gstarstar,A,o_ = Xi(sigmastar,g,I,(s,a))         # (s,a) not in frontier
+  # returns state, remaining gas, accrued substate, bytecode
+  print("Xi() output",sigmastarstar=={},gstarstar,A,o_.hex())
+
+  # 6. fill in rest of account
+  #print("Lambda() code",o_)
+  #print("Lambda() ok",len(sigmastarstar))
+  #sigmastarstar[a].c = KEC(o_)
+  #sigmastarstar[a].bytecode = o_
+
+
+  # 7. prepare return values based on whether there was an exception
+  #   if exception, then the operation should have no effect on sigma leaving it how it was prior to attempting creation
+  #   if no exception, then remaining gas is refunded, and now-altered state is allowed to persist. note: I think refund is just returning it.
+  c = G["codedeposit"]*len(o_)  # code deposit cost
+  print("Xi()",c,gstarstar)
+  if not sigmastarstar:
+    gprime = 0
+  elif gstarstar<c:     # not enough gas to pay for code
+    gprime = gstarstar
+  else:
+    gprime = gstarstar - c
+
+  #gprime = gstarstar    # debugging
+  print("Lambda() gprime c",gprime,c)
+  if not sigmastarstar:
+    print("Lambda() not sigmastarstar")
+    sigmaprime = sigma
+    #print("account:",a.hex(),sigmaprime[a].storage,sigmaprime[a].c.hex(),sigmaprime[a].bytecode.hex())
+    #print("account n b s c bytecode storage address:",sigmaprime[a].n, sigmaprime[a].b, sigmaprime[a].s.hex(), sigmaprime[a].c.hex(),sigmaprime[a].bytecode.hex(),sigmaprime[a].storage,sigmaprime[a].address.hex())
+    # in block 46402, create an account, but it runs out of gas, so delete it, this is for frontier
+    print("Lambda()",a in sigmaprime)
+    if a in sigmaprime:     # added at 46402
+      del sigmaprime[a]     # added at 46402
+      sigma[s].b += v       # added at 48511 or 48512
+    if 0:   # for debugging
+      sigmaprime[a].n = 0
+      sigmaprime[a].c = KEC(o_)
+      sigmaprime[a].bytecode = o_
+      sigmaprime[a].storage = StateTree()
+  elif gstarstar<c:     # not enough gas to pay for code
+    print("Lambda() gstarstar<c")
+    sigmaprime = sigmastar
+    o_=bytearray([])      # added at 49018
+    sigmaprime[a].c = KEC(o_)
+    sigmaprime[a].bytecode = o_
+    #sigmaprime[a].n = 1
+    #sigmaprime[a].storage = StateTree()
+    print("Lambda() new addy:",a.hex())
+    print("  nonce balance code",sigmaprime[a].n, sigmaprime[a].b, sigmaprime[a].c.hex())
+    print("  storage",{k.hex():sigmaprime[a].storage[k].hex() for k in sigmaprime[a].storage})
+  else:
+    sigmaprime = sigmastarstar
+    sigmaprime[a].c = KEC(o_)
+    sigmaprime[a].bytecode = o_
+
+  #print("Lambda",[(k.hex(),v.hex()) for k,v in sigmaprime[a].storage.items()])
+
+  if debug_Lambda:
+    if a in sigmaprime:
+      print("New account:")
+      acct = sigmaprime[a]
+      print("",a.hex(), acct.b, acct.n, acct.s.hex(), acct.c.hex(), acct.bytecode.hex())
+
+  """ different in frontier
+  F = ((not sigmastarstar) and o_==b'') or gstarstar<c or len(o_)>24576     # TODO: I think that 24576 was introduced in spurious dragon
+  gprime = 0 if F else gstarstar-c      # final gas remaining
+  if F:
+    sigmaprime = sigma      # recover with deep-copy
+  elif DEAD(sigmastarstar,a):
+    sigmaprime = sigmastarstar
+    if a in sigmaprime:  # is this possible?
+      del sigmaprime[a]
+  else:
+    sigmaprime = sigmastarstar
+    sigmaprime[a].c = KEC(o_)
+    sigmaprime[a].bytecode = o_
+  """
+
+  
+  z = 0 if (not sigmastarstar) or gstarstar<c else 1  # status code, including whether OOG, note: why not use F?, z not in frontier
+  return sigmaprime, gprime, A, z, o_    # z not in frontier
+
