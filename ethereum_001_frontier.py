@@ -853,4 +853,20 @@ def Omega(sigma,# state
   return sigmaprime, gprime, A, z, o_
 
 
+def XiECREC(sigma,g,I,t):
+  print("XiECREC()")
+  return sigma,g,AO(),bytes()
+
+def XiSHA256(sigma,g,I,t):
+  print("XiSHA256()")
+  return sigma,g,AO(),bytes()
+
+def XiRIP160(sigma,g,I,t):
+  print("XiRIP160()")
+  return sigma,g,AO(),bytes()
+
+def XiID(sigma,g,I,t):
+  print("XiID()")
+  return sigma,g,AO(),bytes()
+
 
