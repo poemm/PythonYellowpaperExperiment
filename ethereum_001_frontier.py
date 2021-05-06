@@ -744,6 +744,113 @@ def Lambda(sigma,   # snapshot state and temporary state
 # - STOP or returns empty, then account is zombie (no code, balance locked)
 
 
+###################
+# 8. Message Call #
+###################
+
+def Omega(sigma,# state 
+          s,    # sender
+          o,    # transaction originator
+          r,    # recipient
+          c,    # code's account address
+          g,    # available gas
+          p,    # gas price
+          v,    # value to be transferred
+          vtilde,   # value apparent in the execution context for the DELEGATECALL instruction, not in frontier
+          d,    # input data, arbitrary length
+          e,    # depth of message-call/contract-creation stack
+          w,    # permission to modify state, not in frontier
+          H,    # not in spec, block header info for opcodes COINBASE, TIMESTAMP, NUMBER, DIFFICULTY, GASLIMIT
+          recentblocks): # not in spec, dictionary with 256 recent blocks used by BLOCKHASH
+  # returns: new state sigmaprime, remaining gas gprime, accrued substate A, error codes z (not in frontier), and output bytearray o_
+  if verbose: print("Omega()")
+  #print("Omega()")
+
+  # 1. checkpoint state in preparation for revert
+  sigma_1prime = sigma.copy() #.checkpoint()
+  #for a,b in zip(sigma,sigma_1prime):
+  #  if a != b:
+  #    print(a.hex,b.hex())
+  #print("shallow copy",len(sigma_1prime),len(sigma))
+  #print(TRIE(y(sigma)).hex(),TRIE(y(sigma_1prime)).hex())
+
+  # 2. receiver update
+  if s!=r:
+    if r not in sigma_1prime: # note: if v==0 (e.g. in block 46382), should create account with balance 0, but this case is disallowed after frontier
+      # create new acct
+      a_1prime = Account(0,v,TRIE({}),KEC(b''),b'',StateTree(),r)
+      sigma_1prime[r] = a_1prime
+      #print("ok",r.hex(),sigma_1prime[r].b)
+      #  elif r not in sigma and v==0:  # TODO: see a few lines above
+      #  # receiver acct remains empty
+      #  pass
+    else:
+      a_1prime = sigma_1prime[r]
+      a_1prime = Account(a_1prime.n,a_1prime.b+v,a_1prime.s,a_1prime.c,a_1prime.bytecode,a_1prime.storage,a_1prime.address)
+      sigma_1prime[r] = a_1prime
+      #sigma_1prime[r].b += v
+
+  #a = Account(0,v,TRIE({}),KEC(b''),b'',StateTree(),r)
+  #sigma[r] = a_1prime
+  #print(TRIE(y(sigma)).hex(),TRIE(y(sigma_1prime)).hex())
+
+  # 3. sender update
+  sigma_1 = sigma_1prime    # sigma_1 is "first transition state"
+  if s!=r:
+    #if s not in sigma_1 and v==0:
+    #  pass #del sigma[s] but it already was not there
+    #else:
+    #  # note that sender must be in state
+    # above comments not in frontier
+    a_1prime = sigma_1[s]
+    a_1prime = Account(a_1prime.n,a_1prime.b-v,a_1prime.s,a_1prime.c,a_1prime.bytecode,a_1prime.storage,a_1prime.address)
+    sigma_1[s] = a_1prime
+    #sigma_1[s].b -= v
+
+  # 4. execute code, if any
+  if c in sigma_1:
+    code = sigma_1[c].bytecode
+  else:
+    code = b''
+  I = ExecutionEnvironment(r,o,p,d,s,vtilde,code,H,e,w,recentblocks)
+  t = (s,r) # this is not in frontier, also not in each call to Xi* below
+  # execute!
+  r_ = int.from_bytes(r,'big')
+  if r_>4 or r_==0:
+    sigmastarstar, gstarstar, A, o_ = Xi(sigma_1,g,I,t) # note: in frontier, A is suicide list s, but s gets subsumed int A later
+  else:
+    # call precompile, see appx E
+    if r_==1:
+      sigmastarstar, gstarstar, A, o_ = XiECREC(sigma_1,g,I,t)
+    elif r_==2:
+      sigmastarstar, gstarstar, A, o_ = XiSHA256(sigma_1,g,I,t)
+    elif r_==3:
+      sigmastarstar, gstarstar, A, o_ = XiRIP160(sigma_1,g,I,t)
+    elif r_==4:
+      sigmastarstar, gstarstar, A, o_ = XiID(sigma_1,g,I,t)
+  #else:
+  #  sigmastarstar, gstarstar, A, o_ = sigma_1, g, A0(), b''
+
+
+  # 5. prepare return values
+  #   if exception (exhausted gas, stack underflow, invalid jumpdest, invalid instruction) then no gas is refunded to caller and state is reverted to sigma
+  #   if no exception, then gas refunded
+  if not sigmastarstar:
+    sigmaprime = sigma
+  else:
+    sigmaprime = sigmastarstar
+  if not sigmastarstar: # and o_==b''   commented part not in frontier
+    gprime = 0
+  else:
+    gprime = gstarstar
+
+  z = 0 if sigmastarstar=={} else 1     # z is not in frontier
+
+  #print("Omega() gas",g,gstarstar,gprime)
+  #print("okok",s.hex(),sigmaprime[s].b)
+  #print("okok",r.hex(),sigmaprime[r].b)
+
+  return sigmaprime, gprime, A, z, o_
 
 
 
