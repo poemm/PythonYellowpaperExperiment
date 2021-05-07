@@ -870,3 +870,22 @@ def XiID(sigma,g,I,t):
   return sigma,g,AO(),bytes()
 
 
+
+
+
+######################
+# 9. Execution Model #
+######################
+
+
+
+############
+# 9.1 Basics
+  
+# EVM
+# stack of 256-bit items, 1024 max depth
+# memory is byte-array addressed by 256-bit words
+# storage is 256-bit words, each indexed by a 256-bit key, all initialized to zero
+# bytecode in a ROM, readable through special opcodes
+# exceptions for stack underflow, invalid instructions, out-of-gas, etc
+#   halt, don't write state, send error to the spawning execution environment to handle
