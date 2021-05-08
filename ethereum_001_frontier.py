@@ -905,4 +905,28 @@ def XiID(sigma,g,I,t):
 # see appx H for gas costs
 
 
+###########################
+# 9.3 Execution Environment
+
+# I denotes an instance of ExecutionEnvironment
+class ExecutionEnvironment:
+  def __init__(self, a, o, p, d, s, v, b, H, e, w, recentblocks):
+    self.a = a  # code owner address
+    self.o = o  # original sender address
+    self.p = p  # gas price of original tx
+    self.d = d  # input data
+    self.s = s  # address which caused this execution
+    self.v = v  # wei
+    self.b = b  # bytecode being executed
+    self.H = H  # block header, or at least what is needed for opcodes BLOCKHASH, COINBASE, TIMESTAMP, NUMBER, DIFFICULTY, GASLIMIT
+    self.e = e  # depth of calls and creations before can execute the present
+    self.w = w  # permission to modify state, not in frontier
+    # the following are not in the spec, but we need it
+    self.recentblocks = recentblocks    # dictionary with 256 recent blocks, used only by BLOCKHASH with 256 recent block headers, dictionary is indexed by blockhash
+
+# note: after frontier, Xi should also have arg t and return z. In frontier, it returns s,l,r but we just return A for now
+# def Xi(sigma, g, I):
+#   return sigmaprime, gprime, A, o
+
+
 
