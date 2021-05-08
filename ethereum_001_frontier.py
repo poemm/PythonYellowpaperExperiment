@@ -889,3 +889,20 @@ def XiID(sigma,g,I,t):
 # bytecode in a ROM, readable through special opcodes
 # exceptions for stack underflow, invalid instructions, out-of-gas, etc
 #   halt, don't write state, send error to the spawning execution environment to handle
+
+
+###################
+# 9.2 Fees Overview
+
+# Fees for three distinct circumstances, all prerequisites to operation:
+# 1) to execute opcode, see appx G
+# 2) payment for subordinate CREATE, CALL, CALLCODE
+# 3) to increase memory usage
+#    fee is proportional to range of memory used, to the smallest multiple of 32 bytes, paid just-in-time
+
+# gas for rezeroing storage entry is free and given a qualified refund
+
+# see appx H for gas costs
+
+
+
