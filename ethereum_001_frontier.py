@@ -929,4 +929,33 @@ class ExecutionEnvironment:
 #   return sigmaprime, gprime, A, o
 
 
+########################
+# 9.4 Execution Overview
+
+# sigma (i.e. greek letter 𝝈) denotes system state
+# mu (i.e. greek letter 𝛍) denotes machine state
+
+# this section defines Xi() (i.e. greek letter Ξ)
+# yellowpaper defines Xi() recursively
+#   with function X()
+#   and iterator function O() which defines a single cycle of the state machine
+#   and function Z() which determines exceptional halting
+#   and function H() which specifies the output data iff normal halting states
+# yellowpaper suggests that a fast implementations of Xi() may be an iterative progression of sigma and mu
+
+# notation: empty sequence () is different from emptyset. H outputs emptyset when execution is to continue and a sequence, possibly (), when execution halts
+
+# Ξ in the yellowpaper, Xi is how this Greek letter is written in ASCII
+def Xi(sigma, 
+       g,       # available gas
+       I,       # execution environment
+       T):      # tuple (sender address, contract address), not in frontier
+  if verbose: print("Xi()")
+  #print("Xi()")
+  #print("code", I.b.hex())
+  mu = MachineState(g,0,bytearray([]),0,[],bytearray([]))   # note: MachineState is defined in 9.4.1
+  sigmaprime,muprime,A,I,o = X_loop(sigma,mu,A0(),I)
+  return sigmaprime, muprime.g, A, o
+
+
 
