@@ -958,4 +958,63 @@ def Xi(sigma,
   return sigmaprime, muprime.g, A, o
 
 
+debug_X = 0
+def X(sigma,mu,A,I):
+  if debug_X: print("X()")
+  #print("X()",mu.pc)
+  # this function recurses until exception, REVERT, or there is an output
+  o = H(mu,I)   # check whether we reached a non-exception halting opcode
+  w_ = w(mu,I)  # get next opcode
+  if debug_X: print("w_",w_,I.b.hex())
+  if Z(sigma,mu,I): # exception
+    if debug_X: print("X() exception Z()")
+    #print("X() exception Z()")
+    sigmaprime,muprime,A,I,o = {},mu,A0(),I,b''
+    #elif w_==0xfd:    # REVERT     REVERT is not in frontier
+    #if debug: print("X() REVERT")
+    #print("X() REVERT")
+    #muprime = mu
+    #muprime.g = mu.g-C(sigma,mu,I)
+    #sigmaprime,muprime,A,I,o = None,muprime,A0(),I,o
+  elif o!=None:     # halt after this opcode
+    if debug_X: print("X() halt after this opcode")
+    #print("X() halt after this opcode")
+    sigmaprime,muprime,A,I = O(sigma,mu,A,I) # execution cycle
+    o = mu.o # this is awkward, call it again after O() now that mu.o is updated
+    #print("X() code",o.hex())
+  else:             # recurse 
+    #print("w_",w_,"mu.pc",mu.pc,"I.b",I.b.hex(),"I.b[mu.pc]",I.b[mu.pc])
+    if debug_X: print("X() recurse")
+    #print("X() recurse")
+    sigmaprime,muprime,A,I,o = X(*O(sigma,mu,A,I))
+  return sigmaprime, muprime, A, I, o
+
+
+# the book suggests doing X() in a loop, so implement that too, since recursion with long-running programs may exceed system limits, I think that python has limit recursion depth 500
+def X_loop(sigma,mu,A,I):
+  if debug_X: print("X_loop()")
+  while 1:
+    if debug_X: print("X_loop() iter",mu.g)
+    o = H(mu,I)   # check whether we reached a non-exception halting opcode
+    w_ = w(mu,I)  # get next opcode
+    if Z(sigma,mu,I): # excepton
+      print("X_loop() exception")
+      sigma,mu,A,I,o = {},mu,A0(),I,b''
+      break
+    #elif w_==0xfd:    # REVERT     # not in frontier
+    #  muprime = mu
+    #  muprime.g = mu.g-C(sigma,mu,I)
+    #  sigmaprime,muprime,A,I,o = None,muprime,A0(),I,o
+    #  break
+    elif o!=None:     # halt after this halting opcode
+      sigma,mu,A,I = O(sigma,mu,A,I) # execution cycle
+      o = mu.o     # this is awkward, call it again after O() so that mu.o is updated
+      break
+    else:
+      sigma,mu,A,I = O(sigma,mu,A,I)
+  return sigma, mu, A, I, o
+
+
+
+
 
