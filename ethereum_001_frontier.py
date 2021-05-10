@@ -1086,3 +1086,44 @@ def W(w_,mu):
 # I.e. there are no undefined exceptional halts. This needs proof.
 
 
+# 9.4.3 Jump Destination Validity
+
+# valid jump destinations are positions of JUMPDEST instruction
+#   must not be in immediates of PUSH
+#   must be in "explicitly" defined portion of code, not "implicitly" defined STOP operations that trail it
+
+# TODO: do this at contract creation, store it with code
+
+# return set of valid jump destinations
+def D(c):
+  return D_J(c,0)
+
+# recursive helper of D
+def D_J(c,i):
+  if i >= len(c):
+    return set()
+  elif c[i] == 0x5b:    # JUMPDEST
+    return set([i]).union(D_J(c,N(i,c[i])))
+  else:
+    return D_J(c,N(i,c[i]))
+
+# get the next valid instruction position, skipping PUSH* immediates
+def N(i,w_):
+  #print("N()",i,hex(w_))
+  if 0x60<=w_ and w_<=0x7f:   # PUSH1,PUSH2,...,PUSH32
+    return i+w_-0x60+2
+  else:
+    return i+1
+
+# Note: above D() is recursive, and python exceeds recursion here at depth 1000, so do it in a loop. Both versions seem to work, but D_loop() can handle >1000 jumpdests.
+def D_loop(c):
+  jumpdests = set()
+  pc = 0
+  while pc < len(c):
+    if c[pc] == 0x5b:    # JUMPDEST
+      jumpdests.add(pc)
+    pc = N(pc,c[pc])
+  return jumpdests
+
+
+
