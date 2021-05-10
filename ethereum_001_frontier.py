@@ -1015,6 +1015,25 @@ def X_loop(sigma,mu,A,I):
   return sigma, mu, A, I, o
 
 
+# 9.4.1 Machine State.
+
+# mu denotes an instance of MachineState
+class MachineState:
+  def __init__(self,g,pc,m,i,s,o):
+    self.g =    g   # gas available
+    self.pc =   pc  # program counter
+    self.m =    m   # memory contents up to zero padding until size 2^256
+    self.i =    i   # number of active words in memory, counting continuously from position 0
+    self.s =    s   # stack contents
+    # the rest are not officially in machine state, but the spec treats them as if they are
+    self.o =    o   # return data, should be empty bytearray by default
+
+# w is current instruction to be executed
+def w(mu,I):
+  if mu.pc<len(I.b):
+    return I.b[mu.pc]
+  else:
+    return 0x00     # STOP
 
 
 
