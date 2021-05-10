@@ -1036,4 +1036,53 @@ def w(mu,I):
     return 0x00     # STOP
 
 
+# 9.4.2 Exceptional Halting
+
+# the exceptional halting function
+debug_Z = 0
+def Z(sigma, mu, I):
+  if debug_Z: print("Z()")
+  w_ = w(mu,I)
+  if debug_Z:
+    print("Z() w_",w_)
+    print("Z() gas",mu.g)
+    if w_ in EVM_opcodes:
+      print("Z()",len(mu.s),EVM_opcodes[w_]["delta"],len(mu.s)<EVM_opcodes[w_]["delta"])
+      print("Z()",len(mu.s),EVM_opcodes[w_]["delta"],)
+    else:
+      print("Z()",w_,"is an invalid opcode")
+  if((w_ not in EVM_opcodes) or   # instruction is invalid (in spec, they check if delta_w is undefined)
+     len(mu.s)<EVM_opcodes[w_]["delta"] or  # insufficient stack items 
+     mu.g<C(sigma,mu,I) or      # insufficient gas, typo in yp, this goes after checking for insufficient stack items which C() depends on
+     ( w_==0x56 and             # opcode is "JUMP", need JUMPDEST
+       mu.s[-1] not in D_loop(I.b) ) or  # D(), defined below, is the set of valid jump destinations
+     ( w_==0x57 and             # similar for JUMPI
+       mu.s[-2] != 0 and 
+       mu.s[-1] not in D_loop(I.b) ) or
+     len(mu.s) - EVM_opcodes[w_]["delta"] + EVM_opcodes[w_]["alpha"] > 1024):    #or  # stack size > 1024
+    # the following are not in frontier
+    #( w_==0x3e and             # RETURNDATACOPY
+    #  mu.s[-2] + mu.s[-3] > len(mu.o) ) or 
+    #( ( not I.w ) and W(w_,mu) ) ):   # state modification attempted during static call
+    if debug_Z: print("Z() returning True")
+    if debug_Z: print("Z() val",mu.g<C(sigma,mu,I),mu.g,C(sigma,mu,I))
+
+    return True
+  else:
+    if debug_Z: print("Z() returning False")
+    return False
+
+# W() is not in frontier
+# check if this opcode does state modification
+def W(w_,mu):
+  if(w_ in {0xf0,0x55,0xff} or    # CREATE, SSTORE, SELFDESTRUCT
+     ( 0xa0 <= w_ and w_ <= 0xa4 ) or  # LOG0 to LOG4; note: typo in yellowpaper gives ambiguous precedence of and
+     ( w_ in {0xf1,0xf2} and mu.s[-3]!=0 ) ):   # CALL or CALLCODE with nonzero value transferred
+    return True
+  else:
+    return False
+
+# claim: if Z() returns False, then execution of instruction can't cause an exceptional halt
+# I.e. there are no undefined exceptional halts. This needs proof.
+
 
