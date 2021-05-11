@@ -1126,4 +1126,19 @@ def D_loop(c):
   return jumpdests
 
 
+# 9.4.4 Normal Halting
+
+# the normal halting function
+def H(mu,I):
+  w_ = w(mu,I)
+  #print("H()",w_)
+  if w_ in {0xf3}: #,0xfd}:      # RETURN, since 0xfd REVERT is not in frontier
+    #print("H() RETURN")
+    return mu.o              # H_RETURN(mu) is defined in appx H, opcode RETURN. We hard-code mu.o here which may be empty string since H() is called before RETURN opcode
+  elif w_ in {0x00,0xff}:    # STOP,SELFDESTRUCT
+    #print("H() STOP or SELFDESTRUCT")
+    return bytearray([])
+  else:
+    return None
+
 
