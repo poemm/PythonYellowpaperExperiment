@@ -1142,3 +1142,64 @@ def H(mu,I):
     return None
 
 
+#########################
+# 9.5 The Execution Cycle
+
+
+# iterator function, defines single cycle of the state machine
+debug_O = 1
+counter = 0
+def O(sigma, mu, A, I):
+  global counter
+  if debug_O:
+    #print("O() counter",counter)
+    pass
+  counter+=1
+
+  #print("O() gas begin",mu.g)
+
+  # 1. get opcode
+  w_ = w(mu,I)
+
+  # 2. check stack, making sure that stack pops/pushes items with low index first then shifts indices
+  # there is several stack assertions, which we omit because EVM does precisely what these assertions check
+  # note: we must reduce gas, execute opcode, then adjust pc, in the following order, otherwise opcodes GAS and PC will break
+  if debug_O:
+    #print("full stack",mu.s)
+    #print("full mem",mu.m.hex())
+    #print("mem len",len(mu.m))
+    #print("full mem",mu.m.hex())
+    print(hex(w_)[2:],EVM_opcodes[w_]["mnemonic"],"\tstack,gas:",[mu.s[-1*i] for i in range(EVM_opcodes[w_]["delta"],0,-1)],"\t",mu.g,"\t->",end="")
+
+  # 3. reduce gas; note: some opcodes reduce it further
+  #print("O() gas before decrement",mu.g)
+  mu.g = mu.g - C(sigma, mu, I) # note: this is repeated in 9.4
+  #print("O() gas after decrement",mu.g)
+  if mu.g<0:
+    return {}, mu, A, I     # out-of-gas error
+
+  # 4. execute opcode
+  # execute opcode
+  #input("Press Enter to continue...")
+  #input()
+  #print("O()",EVM_opcodes[w_]["description"],sigma,mu,A,I)
+  sigmaprime,muprime,Aprime,I = EVM_opcodes[w_]["description"](sigma,mu,A,I)
+  #print(" ",EVM_opcodes[w_]["mnemonic"],"mu.s:",[mu.s[-1*i] for i in range(1,1+EVM_opcodes[w_]["alpha"])])
+  if debug_O:
+    #print("O() stack",mu.s)
+    if sigmaprime != {}:
+      print("\t",[mu.s[-1*i] for i in range(EVM_opcodes[w_]["alpha"],0,-1)],mu.g)
+
+  # note: if sigmaprime=={}, then there was an exception
+
+  # 5. adjust program counter
+  if w_ not in {0x56,0x57}: # if not JUMP or JUMPI
+    muprime.pc = N(mu.pc,w_)
+  else: 
+    # JUMP and JUMPI already adjusted it
+    pass
+
+  #print("O() gas end",mu.g)
+
+  return sigmaprime, muprime, Aprime, I
+
