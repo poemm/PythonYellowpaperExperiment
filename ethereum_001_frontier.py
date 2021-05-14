@@ -1203,3 +1203,25 @@ def O(sigma, mu, A, I):
 
   return sigmaprime, muprime, Aprime, I
 
+
+
+###################
+# 10. Blockchaian # 
+###################
+
+
+# get total difficulty of the chain up to this block
+# walks back and recursively sums difficulties
+def total_difficulty(B,         # a block
+                     blocks):   # this is not in the yellowpaper, but we need a dictionary of blocks
+  Bprime = P(B.H,blocks)
+  B_t = B.H.d + total_difficulty(Bprime,blocks)     # note: yellowpaper abuses notation, since B.t and B.d are not a part of a block, we assume B.d looks up difficulty from the header
+  return B_t
+
+# get parent block from this block header
+# we give it an extra arg Blocks which is a dictionary
+def P(H,            # a block header
+      blocks):      # this is not in the yellowpaper, but we need a dictionary of blocks indexed by hash
+  parent = blocks[H.p]
+  return parent
+
