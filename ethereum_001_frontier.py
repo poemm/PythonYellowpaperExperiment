@@ -1225,3 +1225,29 @@ def P(H,            # a block header
   parent = blocks[H.p]
   return parent
 
+
+
+
+##########################
+# 11. Block Finalization #
+##########################
+
+def finalize_block(sigma,   # state
+                   B,       # the block to validate
+                   blocks): # dictionary:blockhash->block, need recent 8(6?) blocks to validate ommers, and up to 256 to execute BLOCKHASH
+  # 1. validate ommers
+  if not validate_ommers(B,blocks):
+    return False
+  # 2. validate transactions
+  if not validate_transactions(B):
+    return False
+  # 3. apply rewards
+  sigma = Omega_(B,sigma)  # apply block rewards, note: yellowpaper uses ntn l(sigma) to mean final state, which is bad notation
+  # 4. verify state and nonce
+  return sigma
+
+
+
+
+
+
