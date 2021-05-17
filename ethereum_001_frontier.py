@@ -1248,6 +1248,40 @@ def finalize_block(sigma,   # state
 
 
 
+#########################
+# 11.1 Ommer Validation
+
+def validate_ommers(B,          # the block to validate
+                    blocks):    # not in spec, a hash-indexed dictionary with blocks needed to access parents of blocks
+  return True   # TODO: delete this line when ready
+  if(len(B.U)<=2 and   # max 2 uncles per block
+     V(B.U) and        # V(H) is the header validity function in 4.3.4 TODO: unimplemented
+     k(B.U,P(B.H,blocks).H,6) ): # is kin, note: P(H,blocks) returns parent
+    return True
+  else:
+    return False
+
+# the is-kin function
+def k(U,H,n,blocks):    # extra arg blocks is dictionary:blockhash->block
+  if n==0:
+    return False
+  else:
+    return s(U,H,blocks) or k(U,P(H,blocks).H,n-1)
+
+# the is-sibling function
+def s(U,H,blocks):
+  if(P(H,blocks)==P(U,blocks) and    # same parent
+     H!=U and            # not equal TODO: should check each field
+     U not in B(H).U):   # not an uncle already, TODO: should check each field. NOTE: this is ineffective, need separate rule to check whether the uncle is not already there.
+    return True
+  else:
+    return False
+
+# get block from header
+def B(H,blocks):
+  blockhash = KEC(RLP(L_H(H)))  # compute block hash TODO: test this
+  return blocks[blockhash]
+
 
 
 
