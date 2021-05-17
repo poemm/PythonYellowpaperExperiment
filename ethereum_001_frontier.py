@@ -1294,4 +1294,39 @@ def validate_transactions(B):
     return False
 
 
+#########################
+# 11.3 Reward Application
+
+# block miner reward
+R_block = 5*(10**18)    # 5000000000000000000 wei
+
+# applies rewards
+# note: collision with function Omega() in section 8 for message call
+# this is called "block finalization function", but that is defined at the beginning of this section to call Omega_(), so yellowpaper should not call this the block finalization function.
+def Omega_(B,sigma):
+  sigmaprime = sigma
+  #print("miner before block reward:",B.H.c.hex(), sigmaprime[B.H.c].b)
+  if B.H.c not in sigma:
+    aprime = Account(0,0,TRIE({}),KEC(b''),b'',StateTree(),B.H.c)
+    sigmaprime[B.H.c] = aprime
+  sigmaprime[B.H.c].b = sigma[B.H.c].b + int((1+len(B.U)/32)*R_block)   # TODO: does floating point ever screw up? Maybe should hard-code R_block/32
+  #print("miner after block reward:",B.H.c.hex(), sigmaprime[B.H.c].b)
+  for U in B.U:
+    R = int((1+(U.i-B.H.i)/8)*R_block)  # TODO: does floating point ever screw up? Maybe should hard-code R_block/32
+    if U.c not in sigmaprime and R==0:
+      # don't think R==0 is possible after validate_ommers(), but anyway account at U.c is already empty so no need to remove it
+      pass
+    else:
+      # must update U.c's balance
+      # note: bug in yellowpaper, because it assumes U.c is in state already
+      if U.c in sigmaprime:
+        sigmaprime[U.c].b += R
+      else:
+        aprime = Account(0,R,TRIE({}),KEC(b''),b'',StateTree(),U.c)
+        sigmaprime[U.c] = aprime
+      #print("uncle reward",R,sigmaprime[U.c].b)
+  return sigmaprime
+
+
+
 
