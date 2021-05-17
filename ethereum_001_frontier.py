@@ -1283,5 +1283,15 @@ def B(H,blocks):
   return blocks[blockhash]
 
 
+#############################
+# 11.2 Transaction Validation
+
+def validate_transactions(B):
+  return True   # TODO: delete this line when ready
+  if B.H.g == l(B.R).u:     # total gas used in header equals accumulated gas in last receipt
+    return True
+  else:
+    return False
+
 
 
