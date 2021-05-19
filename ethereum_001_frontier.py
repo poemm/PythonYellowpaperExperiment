@@ -1329,4 +1329,37 @@ def Omega_(B,sigma):
 
 
 
+###############################
+# 11.4 State & Nonce Validation
+
+# Gamma (i.e. Greek letter 𝚪) maps block to initiation state
+# This function assumes we save the snapshot state before each block, which we don't save.
+def Gamma(B):
+  if P(B.H):
+    # typo in yellowpaper, kern10pc should be removed
+    sigma_0 = None  # TODO: I think this is the genesis state after genesis block 0
+    return state_0
+  else:
+    roothash = P(B.H).H.r   # parent's state root hash
+    sigma_i = None  # TODO: I think this is the state before block i
+    return  sigma_i
+
+# Phi (i.e. Greek letter 𝚽) is the block transition function, maps incomplete block B to complete block Bprime
+# this function is useful only to mine a block, if fills in nonce, mixHash, stateRoot
+def Phi(B):
+  Bstar = B
+  Bstar.H.r = r(Pi(Gamma(B),B))  # recall: H.r is stateroot, Pi is block-level state transiction function, I think that r(sigma) means root hash, TODO: implement Gamma()
+  Bprime = B
+  if not B.H.m: # if mixHash is missing, then mine one
+    n=0
+    while 1:
+      x,m = PoW(Bstar_notH, n, d)
+      if x<=(2**256)/H.d:  # recall: H.d is difficulty
+        break
+      n+=1
+    Bprime.H.m = B.H.m   # recall: H.m is mixHash
+    Bprime.H.n = n       # recall H.n is nonce
+  return Bprime
+
+
 
