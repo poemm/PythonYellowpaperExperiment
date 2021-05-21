@@ -1392,3 +1392,57 @@ def Pi(sigma,B,recentblocks):
 
 
 
+#######################################
+# Appendix B. Recursive Length Prefix #
+#######################################
+
+
+# main functions for encoding (RLP) and decoding (RLP_inv)
+def RLP(x):
+  if verbose: print("RLP(",x,")")
+  if type(x) in {bytearray,bytes}:
+    return R_b(x)
+  elif type(x)==int:
+    return RLP(BE(x))
+  else: #list
+    return R_l(x)
+
+# binary encoding/decoding
+def R_b(x):
+  if verbose: print("R_b(",x,")")
+  if len(x)==1 and x[0]<128:
+    return x #bytearray([x[0] + 0x80])
+  elif len(x)<56:
+    return bytearray([128+len(x)])+x
+  else:
+    return bytearray([ 183+len(BE(len(x))) ]) + BE(len(x))  + x
+
+# int to big-endian byte array
+def BE(x):
+  if verbose: print("BE(",x,")")
+  if x==0:
+    return bytearray([])
+  ret = bytearray([])
+  while x>0:
+    ret = bytearray([x%256]) + ret
+    x=x//256
+  return ret
+
+# list encoding/decoding
+def R_l(x):
+  if verbose: print("R_l(",x,")")
+  sx=s(x)
+  if len(sx)<56:
+    return bytearray([192+len(sx)]) + sx
+  else:
+    return bytearray([ 247+len(BE(len(sx)))]) + BE(len(sx)) + sx
+
+# for a list, recursively call RLP or RLP_inv
+def s(x):
+  if verbose: print("s(",x,")")
+  sx = bytearray([])
+  for xi in x:
+    sx+=RLP(xi)
+  return sx
+
+
