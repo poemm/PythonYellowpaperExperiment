@@ -1362,4 +1362,33 @@ def Phi(B):
   return Bprime
 
 
+# Pi (i.e. Greek letter 𝚷) is the block-level state-transition function (called "state-accumulation function" in section 4.3.2)
+# this is the main function used to process a block
+def Pi(sigma,B,recentblocks):
+  # note: yellowpaper notation here is underspecified
+  # Pi is sketched in section 2 to iterate over all transactions in the block, which we implement here
+  # sigma_n = Gamma(B)  # we already have sigma, don't need Gamma(), yellowpaper is overconstrained
+  # set up receipts
+  R_u = 0   # cumulative gas used
+  B.R.append(Receipt(R_u,b'',[],0,b'')) # dummy receipt before first tx, this shouldn't get merkleized?
+  sigma_n = sigma
+  for n in range(len(B.T)):
+    T = B.T[n]
+    preRoot = b'' # sigma_n.merkleize()   # TODO
+    sigma_n, Upsilong, Upsilonl, Upsilonz, A = Upsilon(sigma_n,B,T,recentblocks)
+    # where g is total gas used in tx, l_ is log items from tx, z is status code from tx
+    #sigma_n.merkleize()
+    R_u += Upsilong     # cumulative gas used
+    logsBloomFilter = None # TODO: M(O) should be called, but this is not critical
+    R = Receipt(R_u, logsBloomFilter, Upsilonl, Upsilonz, preRoot)
+    B.R.append(R)   # the index is actually n+1, since we have a dummy recept before the first tx, must fix this before merkleize receipts
+    # TODO: handle receipt wrt block B, either insert, compare, or ignore
+  # finalize: validate ommers, validate txs, apply rewards, verify state and nonce
+  finalize_block(sigma_n,B,recentblocks)
+  # TODO: do PoW with Phi()
+  #postRoot = sigma_n.merkleize()
+  # TODO: handle postRoot wrt block B, either insert, compare, or ignore
+  return sigma_n
+
+
 
