@@ -1554,5 +1554,15 @@ def f(t):
   else:
     return 0
 
+def HP_inv(bytes_):
+  nibbles = ""
+  odd_length = (bytes_[0]>>4)%2==1 #sixth lowest bit
+  t = (bytes_[0]>>5)%2!=0 #fifth lowest bit
+  if odd_length:
+    nibbles += bytes_[0:1].hex()[1]
+  for b in bytes_[1:]:
+    nibbles += bytes([b]).hex()
+  return nibbles, t
+
 
 
