@@ -1526,4 +1526,33 @@ def decode_length(b):
 
 
 
+###################################
+# Appendix C. Hex Prefix Encoding #
+###################################
+
+def HP(x,t):
+  # x is bytearray of values < 16
+  # x is a byte array, will convert to a bytearray of values < 16
+  # t is 0 or 1, or false or true
+  if verbose: print("HP(",x,t,")")
+  #x = bytes([int(d,16) for d in x.hex()])
+  ret=bytearray()
+  if len(x)%2==0: #ie even length
+    ret.append(16*f(t))
+    for i in range(0,len(x),2):
+      ret.append(16*x[i]+x[i+1])
+  else:
+    ret.append(16*(f(t)+1)+x[0])
+    for i in range(1,len(x),2):
+      ret.append(16*x[i]+x[i+1])
+  if debug: print("HP() returning", ret)
+  return ret
+
+def f(t):
+  if t:
+    return 2
+  else:
+    return 0
+
+
 
