@@ -1566,3 +1566,28 @@ def HP_inv(bytes_):
 
 
 
+###########################################
+# Appendix D. Modified Merkle Patricia Tree
+
+#################################################
+# build tree from account dict
+# we follow the suggestion in including memoized tree structure and hashes
+# the TRIE function is inefficient, only done once to build genesis tree from list of accounts
+
+def y(J):
+  yJ = {}
+  for kn in J:
+    kn_ = KEC(kn)
+    knprime = bytearray(2*len(kn_))
+    for i in range(2*len(kn_)):
+      if i%2==0: # even
+        knprime[i] = kn_[i//2]//16
+      else:
+        knprime[i] = kn_[i//2]%16
+    #print(kn.hex(),kn_.hex(),knprime.hex())
+    yJ[bytes(knprime)] = J[kn]
+  return yJ
+  #return {bytes([int(d,16) for d in KEC(k).hex()]):v for k,v in J.items()}
+
+
+
