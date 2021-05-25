@@ -1589,5 +1589,85 @@ def y(J):
   return yJ
   #return {bytes([int(d,16) for d in KEC(k).hex()]):v for k,v in J.items()}
 
+def TRIE(J):
+  cJ0 = c(J,0)
+  #print("cJ0",cJ0.hex())
+  return KEC(cJ0)
+
+# node composition function
+def n(J,i):
+  #print("n(",i,")")
+  if len(J)==0:
+    return b''
+  cJi = c(J,i)
+  if len(cJi)<32:
+    return cJi
+  else:
+    #print("cJi,KEC(cJi)",cJi.hex(),KEC(cJi).hex())
+    return KEC(cJi)
+
+# structural composition function, used to patriciaize and merkleize a dictionary
+# this function includes memoization of tree structure and hashes, as suggested in appx D.1
+def c(J,i):
+  #print("c(",J,i,")")
+  #print("c(",i,")")
+
+  if len(J)==0:
+    return RLP(b'') # note: empty storage tree has merkle root: KEC(RLP(b'')) == 56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421
+    # also, KEC(RLP(())) == 1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347, which is the sha3Unlces hash in block header for no uncles
+
+  I_0 = next(iter(J))   # get first key, will reuse below
+
+  # if leaf node
+  if len(J) == 1:
+    leaf = J[I_0]
+    if type(leaf)==Account:
+      I_1 = RLP((leaf.n,leaf.b,leaf.s,leaf.c))
+    else:
+      #I_1 = leaf
+      I_1 = RLP(leaf)
+      print("c() leaf",I_0.hex(),I_1.hex())
+    #print(I_1.hex())
+    rlp = RLP((HP(I_0[i:],1),I_1))
+    #print("leaf rlp",rlp.hex(),KEC(rlp).hex())
+    return rlp
+
+  # prepare for extension node check by finding max j such that all keys I in J have the same I[i:j]
+  l = I_0[:]
+  j = len(l)
+  for I_0 in J:
+    j = min(j,len(I_0))
+    l = l[:j]
+    for x in range(i,j):
+      if I_0[x] != l[x]:
+        j = x
+        l=l[:j]
+        break
+    if i==j:
+      break
+
+  # if extension node
+  if i!=j:
+    child = n(J,j)
+    #print("extension,child",I_0[i:j].hex(),child.hex())
+    rlp = RLP((HP(I_0[i:j],0),child))
+    #print("extension rlp",rlp.hex(),KEC(rlp).hex())
+    return rlp
+
+  # otherwise branch node
+  def u(j):
+    #print("u(",j,")")
+    #print([k.hex() for k in J.keys()])
+    return n({I_0:I_1 for I_0,I_1 in J.items() if I_0[i]==j},i+1)
+  v = b''
+  for I_0 in J:
+    if len(I_0)==i:
+      v = J[I_0]
+      break
+  #print("v",v)
+  rlp = RLP([u(k) for k in range(16)] + [v])
+  #print("branch rlp",rlp.hex(),KEC(rlp).hex())
+  return rlp
+
 
 
