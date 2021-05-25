@@ -1,4 +1,3 @@
-
 Setup.
 ```
 pip install pysha3
@@ -12,5 +11,3 @@ Execute blocks starting from genesis. Currently executes up to block `49018`, ne
 ```
 python3 main.py
 ```
-
-
