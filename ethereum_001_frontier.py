@@ -1671,3 +1671,56 @@ def c(J,i):
 
 
 
+############
+# Appendix F
+
+# some global constants
+secp256k1n = 115792089237316195423570985008687907852837564279074904382605163141518161494337
+chainid = 0
+
+def ECDSAPUBKEY(p_r):
+  pass
+
+def ECDSASIGN(e,p_r):
+  pass
+
+def ECDSARECOVER(e,v,r,s):
+  # e is keccak hash of the tx
+  # r is x-coordinate of curve point
+  # v is recovery id, 27 for even y and 28 for odd y
+  if v>28:
+    v = v - (chainid*2+8) # special case, v=2*chainid+35 if y odd, otherwise v=2*chainid+36
+  assert v==27 or v==28
+  r_int  = int.from_bytes(r,"big")
+  s_int  = int.from_bytes(s,"big")
+  #r_int  = r
+  #s_int  = s
+  assert 0<r_int and r_int<secp256k1n
+  #assert 0<s_int and s_int<(secp256k1n//2+1)     # TODO: this causes error starting in block 46169 (or 46170?), so just commented
+  return crypto.secp256k1recover(r,s,v-27,e)
+
+def A(p_r):
+  return KEC(ECDSAPUBKEY(p_r))[12:32] # bits 96 to 256
+
+def L_S(T):
+  if not T.t:
+    p = T.i
+  else:
+    p = T.d
+  if T.w in {27,28}:
+    return (T.n, T.p, T.g, T.t, T.v, p)
+  else:
+    return (T.n, T.p, T.g, T.t, T.v, p, chainid, (), ())
+
+def h(T):
+  return KEC(RLP(L_S(T))) # note: yellowpaper omits RLP()
+
+# recover transaction sender
+def S(T):
+  return KEC(ECDSARECOVER(h(T),T.w,T.r,T.s))[12:32] 
+
+
+
+
+
+
