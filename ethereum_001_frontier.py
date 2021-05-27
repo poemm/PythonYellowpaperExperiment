@@ -1720,6 +1720,24 @@ def S(T):
   return KEC(ECDSARECOVER(h(T),T.w,T.r,T.s))[12:32] 
 
 
+def test_block_46147_transaction():
+  print("ok 45147")
+  Tjson = {"blockHash":"0x4e3a3754410177e6937ef1f84bba68ea139e8d1a2258c5f85db9f1cd715a1bdd","blockNumber":"0xb443","from":"0xa1e4380a3b1f749673e270229993ee55f35663b4","gas":"0x5208","gasPrice":"0x2d79883d2000","hash":"0x5c504ed432cb51138bcf09aa5e8a410dd4a1e204ef84bfed1be16dfba1b22060","input":"0x","nonce":"0x0","r":"0x88ff6cf0fefd94db46111149ae4bfc179e9b94721fffd821d38d16464b3f71d0","s":"0x45e0aff800961cfce805daef7016b9b675c137a6a41a548f7b60a3484c06a33a","to":"0x5df9b87991262f6ba471f09758cde1c0fc1de734","transactionIndex":"0x0","v":"0x1c","value":"0x7a69"}
+  nonce = int(Tjson["nonce"][2:],16)
+  gasPrice = int(Tjson["gasPrice"][2:],16)
+  gasLimit = int(Tjson["gas"][2:],16)
+  to = bytes.fromhex(Tjson["to"][2:])
+  value = int(Tjson["value"][2:],16)
+  v = int(Tjson["v"][2:],16)
+  r = bytes.fromhex(Tjson["r"][2:])
+  s = bytes.fromhex(Tjson["s"][2:])
+  data = bytes.fromhex(Tjson["input"][2:])
+  init = bytes() if "init" not in Tjson else bytes.fromhex(Tjson["init"][2:])
+  print("T",nonce,gasPrice,gasLimit,to,value,v,r,s,data,init)
+  T = Transaction(nonce,gasPrice,gasLimit,to,value,v,r,s,init,data)
+  sender = S(T)
+  from_ = bytes.fromhex(Tjson["from"][2:])
+  print(sender.hex(),from_.hex(),from_==sender) # SUCCEEDS!
 
 
 
