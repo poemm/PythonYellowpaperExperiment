@@ -1741,4 +1741,54 @@ def test_block_46147_transaction():
 
 
 
+##########################
+# Appendix G. Fee Schedule
+
+# G denotes fixed gas costs
+G = {
+  "zero":         0,        # nothing paid for ops of the set W["zero"]
+  "base":         2,        # gas for ops in set W["base"]
+  "verylow":      3,        #                    W["verylow"]
+  "low":          5,        #                    W["low"]
+  "mid":          8,        #                    W["mid"]
+  "high":         10,       #                    W["high"]
+  "ext":          20,       #                    W["ext"]
+  #"balance":      400,      #         BALANCE
+  "sload":        50,       #         SLOAD
+  "jumpdest":     1,        #         JUMPDEST
+  "sset":         20000,    #         SSTORE when change from zero to nonzero
+  "sreset":       5000,     #         SSTORE when set to or remains zero
+  "selfdestruct": 5000,     #         SELFDESTRUCT
+  "create":       32000,    #         CREATE
+  "codedeposit":  200,      #         CREATE per byte to put code in state
+  "call":         40,       #         CALL
+  "callvalue":    9000,     #         CALL for non-zero value transfer
+  "callstipend":  2300,     # stipend for called contract subtracted from G["callvalue"] for nonzero value transfer
+  "newaccount":   25000,    # gas for CALL or SELFDESTRUCT op which creates an account
+  "exp":          10,       # partial payment for EXP
+  "expbyte":      10,       #                     EXP when multiplied by ceil(log_256(exponent)) [?]
+  "memory":       3,        # every additional word when expanding mem
+  "txcreate":     32000,    # not in frontier?
+  "txdatazero":   4,
+  "txdatanonzero":68,
+  "transaction":  21000,
+  "log":          375,
+  "logdata":      8,
+  "logtopic":     375,
+  "sha3":         30,
+  "sha3word":     6,
+  "copy":         3,
+  #"blockhash":    20,
+  #"quaddivisor":  20 
+}
+
+# R denotes gas refund amonuts
+R = {
+  "sclear":       15000,    # added to refund counter when storage is set from nonzero to zero
+  "selfdestruct": 24000,    # added to refund counter when SELFDESTRUCT account
+}
+
+
+
+
 
