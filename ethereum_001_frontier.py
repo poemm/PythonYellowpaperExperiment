@@ -1790,5 +1790,103 @@ R = {
 
 
 
+###########################################
+# Appendix H. Virtual Machine Specification
+
+# H.1 Gas Cost
+
+# returns gas used by an opcode
+# note: we deviate from the yellowpaper, we compute C_memory, C_SELFDESTRUCT, C_SSTORE inside the opcodes, where they can be readily computed.
+def C(sigma, mu, I):
+  # get opcode
+  w_ = w(mu,I)
+  # prepare return
+  ret = 0 # C_memory(mu.iprime) - C_memory(mu.i)  # note: mu.iprime is available in the opcodes, so compute C_memory there
+  if w_==0x55:   # SSTORE
+    pass # this is done inside SSTORE
+  elif w_==0x0a and mu.s[-2]==0:    # EXP
+    ret += G["exp"]
+  elif w_==0x0a and mu.s[-2]>0:     # EXP
+    #print("C() exp ",mu.s[-2])
+    ret += G["exp"] + G["expbyte"] * (1 + math.floor(math.log(mu.s[-2],256)))
+  elif w_ in {0x37,0x39}:   # CALLDATACOPY, CODECOPY    #0x3c RETURNDATACOPY
+    #print("C()",G["verylow"],G["copy"],len(mu.s))
+    ret += G["verylow"] + G["copy"]*-1*((-1*mu.s[-3])//32)
+  elif w_ == 0x3c:   # EXTCODECOPY
+    ret += G["ext"] + G["copy"]*-1*((-1*mu.s[-4])//32)
+  elif w_ == 0xa0:   # LOG0
+    ret += G["log"] + G["logdata"]*mu.s[-2]
+  elif w_ == 0xa1:   # LOG1
+    ret += G["log"] + G["logdata"]*mu.s[-2] + G["logtopic"]
+  elif w_ == 0xa2:   # LOG2
+    ret += G["log"] + G["logdata"]*mu.s[-2] + 2*G["logtopic"]
+  elif w_ == 0xa3:   # LOG3
+    ret += G["log"] + G["logdata"]*mu.s[-2] + 3*G["logtopic"]
+  elif w_ == 0xa4:   # LOG4
+    ret += G["log"] + G["logdata"]*mu.s[-2] + 4*G["logtopic"]
+  elif w_ in {0xf1,0xf2}:  # CALL, CALLCODE:
+    ret += 0 # C_CALL(sigma,mu)  # note: C_CALL() is in appx H, compute it there
+  #elif w_ == "SELFDESTRUCT":    # not in frontier
+  #  ret += 0 # C_SELFDESTRUCT(sigma,mu)  # note: C_SELFDESTRUCT() is in appx H, compute it there
+  elif w_ in {0xf1,0xf2}:  # CALL or CALLCODE
+    # do this in the actual opcodes
+    pass
+  elif w_ == 0xf0:  # CREATE
+    ret += G["create"]
+  elif w_ == 0x20:  # SHA3
+    ret += G["sha3"] + G["sha3word"]*(-1*(-1*mu.s[-2])//32)      # typo: s should be mu.s
+  elif w_ == 0x5b:   # JUMPDEST
+    ret += G["jumpdest"]
+  elif w_ == 0x54:   # SLOAD
+    ret += G["sload"]
+  elif w_ in W["zero"]:
+    ret += G["zero"]
+  elif w_ in W["base"]:
+    ret += G["base"]
+  elif w_ in W["verylow"]:
+    ret += G["verylow"]
+  elif w_ in W["low"]:
+    ret += G["low"]
+  elif w_ in W["mid"]:
+    ret += G["mid"]
+  elif w_ in W["high"]:
+    ret += G["high"]
+  elif w_ in W["ext"]:
+    ret += G["ext"]
+  #elif w_ == "BALANCE":
+  #  ret += G["balance"]
+  #elif w_ == "BLOCKHASH":
+  #  ret += G["blockhash"]
+  return ret
+
+def C_memory(a):
+  return G["memory"]*a + (a**2)//512
+
+W = {
+  "zero":{0xfd,0xff,0xf3}, # STOP, SELFDESTRUCT, RETURN
+  "base":{0x30,0x32,0x33,0x34,0x36,0x38,0x3a,0x41,0x42,0x43,0x44,0x45,0x50,0x58,0x59,0x5a}, # ADDRESS, ORIGIN, CALLER, CALLVALUE, CALLDATASIZE, CODESIZE, GASPRICE, COINBASE, TIMESTAMP, NUMBER, DIFFICULTY, GASLIMIT, POP, PC, MSIZE, GAS
+  "verylow":{0x01,0x03,0x19,0x10,0x11,0x12,0x13,0x14,0x15,0x16,0x17,0x18,0x1a,0x35,0x51,0x52,0x53,0x60,0x61,0x62,0x63,0x64,0x65,0x66,0x67,0x68,0x69,0x6a,0x6b,0x6c,0x6d,0x6e,0x6f,0x70,0x71,0x72,0x73,0x74,0x75,0x76,0x77,0x78,0x79,0x7a,0x7b,0x7c,0x7d,0x7e,0x7f,0x80,0x81,0x82,0x83,0x84,0x85,0x86,0x87,0x88,0x89,0x8a,0x8b,0x8c,0x8d,0x8e,0x8f,0x90,0x91,0x92,0x93,0x94,0x95,0x96,0x97,0x98,0x99,0x9a,0x9b,0x9c,0x9d,0x9e,0x9f}, # ADD, SUB, NOT, LT, GT, SLT, SGT, EQ, ISZERO, AND, OR, XOR, BYTE, CALLDATALOAD, MLOAD, MSTORE, MSTORE8, PUSH*, DUP*, SWAP*},
+  "low":{0x02,0x04,0x05,0x06,0x07,0x0b}, # MUL, DIV, SDIV, MOD, SMOD, SIGNEXTEND
+  "mid":{0x08,0x09,0x56},  # ADDMOD, MULMOD, JUMP
+  "high":{0x57}, # JUMPI
+  "ext":{0x31,0x3b,0x40}  # BALANCE, EXTCODESIZE, BLOCKHASH
+}
+  
+# memory expansion range function ("memory expansion function")
+# note: name collision with chapter 4.3.1 involving logs, so call this one M_
+def M_(s,f,l):
+  # args are current numwords, proposed start byte, proposed length
+  if l==0:
+    return s
+  else:
+    return max(s,-1*((-1*(f+l))//32))
+
+# not in frontier
+# all but one 64th function
+def L(n):
+  return n-n//64
+
+
+
 
 
