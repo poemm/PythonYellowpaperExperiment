@@ -1888,5 +1888,21 @@ def L(n):
 
 
 
+# H.2 Instruction Set
+
+def STOP(sigma,mu,A,I):
+  return sigma,mu,A,I
+
+def ADD(sigma,mu,A,I):
+  mu.s.append((mu.s.pop()+mu.s.pop())%2**256)
+  return sigma,mu,A,I
+
+def MUL(sigma,mu,A,I):
+  mu.s.append((mu.s.pop()*mu.s.pop())%2**256)
+  return sigma,mu,A,I
+
+def SUB(sigma,mu,A,I):
+  mu.s.append((mu.s.pop()-mu.s.pop())%2**256)
+  return sigma,mu,A,I
 
 
