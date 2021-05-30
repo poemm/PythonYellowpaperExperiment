@@ -1905,4 +1905,94 @@ def SUB(sigma,mu,A,I):
   mu.s.append((mu.s.pop()-mu.s.pop())%2**256)
   return sigma,mu,A,I
 
+def DIV(sigma,mu,A,I):
+  mus0 = mu.s.pop()
+  mus1 = mu.s.pop()
+  if mus1==0:
+    mu.s.append(0)
+  else:
+    mu.s.append(mus0//mus1)
+  return sigma,mu,A,I
+
+def SDIV(sigma,mu,A,I):
+  mus0 = mu.s.pop()
+  mus1 = mu.s.pop()
+  # note: convert negative values to 2**256-value
+  mus0_signed = mus0 if mus0<2**255 else mus0-2**256
+  mus1_signed = mus1 if mus1<2**255 else mus1-2**256
+  print("SDIV",mus0_signed,mus1_signed)
+  if mus1==0:
+    mu.s.append(0)
+  elif mus0_signed==-1*2**255 and mus1_signed==-1:
+    mu.s.append(mus0)
+  else:
+    sgn = -1 if mus0_signed*mus1_signed<0 else 1
+    ret = sgn*(abs(mus0_signed)//abs(mus1_signed))
+    if ret<0:
+      ret = 2**256+ret
+    mu.s.append(ret)
+  return sigma,mu,A,I
+
+def MOD(sigma,mu,A,I):
+  mus0 = mu.s.pop()
+  mus1 = mu.s.pop()
+  if mus1==0:
+    mu.s.append(0)
+  else:
+    mu.s.append(mus0%mus1)
+  return sigma,mu,A,I
+
+def SMOD(sigma,mu,A,I):
+  mus0 = mu.s.pop()
+  mus1 = mu.s.pop()
+  mus0_signed = mus0 if mus0<2**255 else mus0-2**256
+  mus1_signed = mus1 if mus1<2**255 else mus1-2**256
+  if mus1==0:
+    mu.s.append(0)
+  else:
+    sgn = 1 if mus0_signed>=0 else -1
+    ret = sgn*(abs(mus0_signed)%abs(mus1_signed))
+    if ret<0:
+      ret = 2**256+ret
+    mu.s.append(ret)
+  return sigma,mu,A,I
+
+def ADDMOD(sigma,mu,A,I):
+  mus0 = mu.s.pop()
+  mus1 = mu.s.pop()
+  mus2 = mu.s.pop()
+  if mus2==0:
+    mu.s.append(0)
+  else:
+    mu.s.append((mus0+mus1)%mus2)
+  return sigma,mu,A,I
+
+def MULMOD(sigma,mu,A,I):
+  mus0 = mu.s.pop()     # a
+  mus1 = mu.s.pop()     # b
+  mus2 = mu.s.pop()     # modulus
+  if mus2==0:
+    mu.s.append(0)
+  else:
+    mu.s.append((mus0*mus1)%mus2)
+    #print("MULMOD",mus0,mus1,mus2,(mus0*mus1)%mus2)
+  return sigma,mu,A,I
+
+def EXP(sigma,mu,A,I):
+  mus0 = mu.s.pop()     # base
+  mus1 = mu.s.pop()     # exponent
+  #mu.s.append((mus0**mus1)%2**256)  # this is very slow for big mus1, so use the popular right-to-left binary method below
+  base = mus0
+  exponent = mus1
+  base = base % 2**256
+  result = 1
+  while exponent > 0:
+    if (exponent % 2 == 1):
+      result = (result * base) % 2**256
+    exponent = exponent >> 1
+    base = (base * base) % 2**256
+  mu.s.append(result)
+  return sigma,mu,A,I
+
+
 
