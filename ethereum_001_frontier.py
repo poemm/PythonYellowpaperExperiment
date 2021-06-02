@@ -1994,5 +1994,81 @@ def EXP(sigma,mu,A,I):
   mu.s.append(result)
   return sigma,mu,A,I
 
+def SIGNEXTEND(sigma,mu,A,I):
+  mus0 = mu.s.pop()
+  mus1 = mu.s.pop()
+  # I think that mus0 is assumed unsigned, otherwise t can be >256 and we overflow
+  # and mus1 is arbitrary, since two's complement
+  mus1_bytes = mus1.to_bytes(256,"big")
+  ret = 0
+  t = 256-8*(mus0+1)    # takes value 0, 8, 16, ..., 248
+  print("t",t)
+  for i in range(256):
+    if i<=t:
+      ret += (mus1 & (1<<(255-t))) << (t-i)
+      #print("ret1",ret,(mus1 & (1<<(255-t))),1 if mus1 & (1<<(255-t)) else 0)
+    else:
+      ret += (mus1 & (1<<(255-i)))
+      #print("ret2",ret,1 if mus1 & (1<<(255-i)) else 0)
+  mu.s.append(ret)
+  return sigma,mu,A,I
+
+def LT(sigma,mu,A,I):
+  mus0 = mu.s.pop()
+  mus1 = mu.s.pop()
+  if mus0<mus1:
+    mu.s.append(1)
+  else:
+    mu.s.append(0)
+  return sigma,mu,A,I
+
+def GT(sigma,mu,A,I):
+  mus0 = mu.s.pop()
+  mus1 = mu.s.pop()
+  if mus0>mus1:
+    mu.s.append(1)
+  else:
+    mu.s.append(0)
+  return sigma,mu,A,I
+
+def SLT(sigma,mu,A,I):
+  mus0 = mu.s.pop()
+  mus1 = mu.s.pop()
+  mus0_signed = mus0 if mus0<2**255 else mus0-2**256
+  mus1_signed = mus1 if mus1<2**255 else mus1-2**256
+  if mus0_signed<mus1_signed:
+    mu.s.append(1)
+  else:
+    mu.s.append(0)
+  return sigma,mu,A,I
+
+def SGT(sigma,mu,A,I):
+  mus0 = mu.s.pop()
+  mus1 = mu.s.pop()
+  mus0_signed = mus0 if mus0<2**255 else mus0-2**256
+  mus1_signed = mus1 if mus1<2**255 else mus1-2**256
+  if mus0_signed>mus1_signed:
+    mu.s.append(1)
+  else:
+    mu.s.append(0)
+  return sigma,mu,A,I
+
+def EQ(sigma,mu,A,I):
+  mus0 = mu.s.pop()
+  mus1 = mu.s.pop()
+  if mus0==mus1:
+    mu.s.append(1)
+  else:
+    mu.s.append(0)
+  return sigma,mu,A,I
+
+def ISZERO(sigma,mu,A,I):
+  mus0 = mu.s.pop()
+  if mus0==0:
+    mu.s.append(1)
+  else:
+    mu.s.append(0)
+  return sigma,mu,A,I
+
 
 
