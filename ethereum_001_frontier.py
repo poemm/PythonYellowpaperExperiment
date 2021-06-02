@@ -2070,5 +2070,627 @@ def ISZERO(sigma,mu,A,I):
     mu.s.append(0)
   return sigma,mu,A,I
 
+def AND(sigma,mu,A,I):
+  mus0 = mu.s.pop()
+  mus1 = mu.s.pop()
+  mu.s.append(mus0 & mus1)
+  return sigma,mu,A,I
+
+def OR(sigma,mu,A,I):
+  mus0 = mu.s.pop()
+  mus1 = mu.s.pop()
+  mu.s.append(mus0 | mus1)
+  return sigma,mu,A,I
+
+def XOR(sigma,mu,A,I):
+  mus0 = mu.s.pop()
+  mus1 = mu.s.pop()
+  mu.s.append(mus0 ^ mus1)
+  return sigma,mu,A,I
+
+def NOT(sigma,mu,A,I):
+  mus0 = mu.s.pop()
+  mu.s.append(2**256-1 - mus0)
+  return sigma,mu,A,I
+
+def BYTE(sigma,mu,A,I):
+  mus0 = mu.s.pop()
+  mus1 = mu.s.pop()
+  ret = 0
+  for i in range(256):
+    if i<8 and mus0<32:
+      ret += (mus1 & 1<<(i+8*(31-mus0)))
+  #ret >>= 8*(31-mus0)
+  mu.s.append(ret)
+  return sigma,mu,A,I
+
+def SHA3(sigma,mu,A,I):
+  mus0 = mu.s.pop()     # start offset
+  mus1 = mu.s.pop()     # length
+  # update memory if overflow
+  mu_iprev = mu.i
+  mu.i = M_(mu.i,mus0,mus1)
+  print("SHA3",mu.i,mu_iprev)
+  if mu_iprev<mu.i:
+    mu.g = mu.g - (C_memory(mu.i)-C_memory(mu_iprev))
+    if mu.g<0:
+      return {}, mu, A, I     # halting exception
+    mu.m.extend(bytes((mu.i-mu_iprev)*32))
+  ret = KEC(mu.m[mus0:mus0+mus1])
+  mu.s.append(int.from_bytes(ret,"big"))
+  #mu.s.append(1)
+  return sigma,mu,A,I
+
+def ADDRESS(sigma,mu,A,I):
+  mu.s.append(int.from_bytes(I.a,"big"))
+  return sigma,mu,A,I
+
+def BALANCE(sigma,mu,A,I):
+  mus0 = mu.s.pop()
+  mus0bytes20 = mus0.to_bytes(160,"big")  # note: maybe should be "little"
+  if mus0bytes20 in sigma:
+    mu.s.append(sigma[mus0bytes20].b)
+  else:
+    mu.s.append(0)
+  return sigma,mu,A,I
+
+def ORIGIN(sigma,mu,A,I):
+  mu.s.append(int.from_bytes(I.o,"big"))
+  return sigma,mu,A,I
+
+def CALLER(sigma,mu,A,I):
+  print(int.from_bytes(I.s,'big'))
+  mu.s.append(int.from_bytes(I.s,'big'))
+  return sigma,mu,A,I
+
+def CALLVALUE(sigma,mu,A,I):
+  mu.s.append(I.v)
+  return sigma,mu,A,I
+
+def CALLDATALOAD(sigma,mu,A,I):
+  mus0 = mu.s.pop()
+  if mus0>=len(I.d):
+    mu.s.append(0)
+  else:
+    print("CALLDATALOAD",I.d[mus0:mus0+32].hex(), type(I.d[mus0:mus0+32]), type(mu.m))
+    calldata = I.d[mus0:mus0+32]
+    calldata += bytes(32-len(calldata))
+    print("CALLDATALOAD",calldata)
+    #mu.s.append(int.from_bytes(bytes(bytearray(I.d[mus0:mus0+32]).extend(32)),"big"))
+    #mu.s.append(int.from_bytes(I.d[mus0:mus0+32],"big"))
+    mu.s.append(int.from_bytes(calldata,"big"))
+  return sigma,mu,A,I
+
+def CALLDATASIZE(sigma,mu,A,I):
+  mu.s.append(len(I.d))
+  return sigma,mu,A,I
+
+def CALLDATACOPY(sigma,mu,A,I):
+  mus0 = mu.s.pop()
+  mus1 = mu.s.pop()
+  mus2 = mu.s.pop()
+  # extend memory if necessary
+  mu_iprev = mu.i
+  mu.i = M_(mu.i,mus0,mus2)
+  if mu_iprev<mu.i:
+    mu.g = mu.g - (C_memory(mu.i)-C_memory(mu_iprev))
+    if mu.g<0:
+      return {}, mu, A, I     # halting exception
+    mu.m.extend(bytes((mu.i-mu_iprev)*32))
+  for i in range(mus2):
+    if mus1+i<len(I.d):
+      mu.m[mus0+i] = I.d[mus1+i]
+    else:
+      mu.m[mus0+i] = 0
+  return sigma,mu,A,I
+
+def CODESIZE(sigma,mu,A,I):
+  mu.s.append(len(I.b))
+  return sigma,mu,A,I
+
+def CODECOPY(sigma,mu,A,I):
+  mus0 = mu.s.pop()     # memory location
+  mus1 = mu.s.pop()     # code location
+  mus2 = mu.s.pop()     # length
+  # extend memory if necessary
+  mu_iprev = mu.i
+  mu.i = M_(mu.i,mus0,mus2)
+  if mu_iprev<mu.i:
+    mu.g = mu.g - (C_memory(mu.i)-C_memory(mu_iprev))
+    if mu.g<0:
+      return {}, mu, A, I     # halting exception
+    mu.m.extend(bytes((mu.i-mu_iprev)*32))
+  for i in range(mus2):
+    if mus1+i<len(I.b):
+      mu.m[mus0+i] = I.b[mus1+i]
+    else:
+      mu.m[mus0+i] = 0
+  #print("CODECOPY",mu.m[mus0:mus0+mus2].hex())
+  return sigma,mu,A,I
+
+def GASPRICE(sigma,mu,A,I):
+  mu.s.append(I.p)
+  return sigma,mu,A,I
+
+def EXTCODESIZE(sigma,mu,A,I):
+  mus0 = mu.s.pop()
+  mus0bytes20 = mus0.to_bytes(160,"big")  # note: maybe should be "little"
+  if mus0bytes20 in sigma:
+    mu.s.append(len(sigma[mus0bytes20].b))
+  else:
+    mu.s.append(0)
+  return sigma,mu,A,I
+
+def EXTCODECOPY(sigma,mu,A,I):
+  mus0 = mu.s.pop()
+  mus1 = mu.s.pop()
+  mus2 = mu.s.pop()
+  mus3 = mu.s.pop()
+  # extend memory if necessary
+  mu_iprev = mu.i
+  mu.i = M_(mu.i,mus1,mus3)
+  if mu_iprev<mu.i:
+    mu.g = mu.g - (C_memory(mu.i)-C_memory(mu_iprev))
+    if mu.g<0:
+      return {}, mu, A, I     # halting exception
+    mu.m.extend(bytes((mu.i-mu_iprev)*32))
+  # get code
+  mus0bytes20 = mus0.to_bytes(160,"big")  # note: maybe should be "little"
+  if mus0bytes20 in sigma:
+    c = sigma[mus0bytes20].c
+  else:
+    c = bytes([])
+  # copy code to mem
+  for i in range(mus3):
+    if mus2+i<len(c):
+      mu.m[mus1+i] = c[mus2+i]
+    else:
+      assert 1==0     # STOP, note: find a nicer way to do this
+  return sigma,mu,A,I
+      
+def RETURNDATASIZE(sigma,mu,A,I):
+  mu.s.append(len(mu.o))
+  return sigma,mu,A,I
+
+def RETURNDATACOPY(sigma,mu,A,I):
+  mus0 = mu.s.pop()
+  mus1 = mu.s.pop()
+  mus2 = mu.s.pop()
+  # extend memory if necessary
+  mu_iprev = mu.i
+  mu.i = M_(mu.i,mus0,mus2)
+  if mu_iprev<mu.i:
+    mu.g = mu.g - (C_memory(mu.i)-C_memory(mu_iprev))
+    if mu.g<0:
+      return {}, mu, A, I     # halting exception
+    mu.m.extend(bytes((mu.i-mu_iprev)*32))
+  # copy code to mem
+  for i in range(mus2):
+    if mus1+i<len(mu.o):
+      mu.m[mus0+i] = mu.o[mus1+i]
+    else:
+      mu.m[mus0+i] = 0
+  return sigma,mu,A,I
+
+def BLOCKHASH(sigma,mu,A,I):
+  # func P_ steps back over headers until it reaches the correct block number
+  # note: name collision with func P() in section 10
+  def P_(h,n,a):
+    H = I.recentblocks[h].H         # get block header from block hash h
+    if n>H.i or a==256 or h==0:     # recall: H.i is blocknumber
+      return 0
+    elif n==H.i:
+      return h
+    else:
+      return P_(H.p,n,a+1)
+  blockhash = P_(I.H.p,mus0,0)
+  ret = int.from_bytes(blockhash,'big')
+  mu.s.append(ret)
+  return sigma,mu,A,I
+
+def COINBASE(sigma,mu,A,I):
+  mu.s.append(int.from_bytes(I.H.c,"big"))
+  return sigma,mu,A,I
+
+def TIMESTAMP(sigma,mu,A,I):
+  mu.s.append(I.H.s)
+  return sigma,mu,A,I
+
+def NUMBER(sigma,mu,A,I):
+  mu.s.append(I.H.i)
+  return sigma,mu,A,I
+
+def DIFFICULTY(sigma,mu,A,I):
+  print("DIFFICULTY",I.H.d)
+  mu.s.append(I.H.d)
+  return sigma,mu,A,I
+
+def GASLIMIT(sigma,mu,A,I):
+  mu.s.append(I.H.l)
+  return sigma,mu,A,I
+
+def POP(sigma,mu,A,I):
+  mu.s.pop()
+  return sigma,mu,A,I
+
+def MLOAD(sigma,mu,A,I):
+  mus0 = mu.s.pop()
+  # extend memory if necessary
+  mu_iprev = mu.i
+  mu.i = max(mu.i,-1*((-1*(mus0+32))//32))
+  if mu_iprev<mu.i:
+    mu.g = mu.g - (C_memory(mu.i)-C_memory(mu_iprev))
+    if mu.g<0:
+      return {}, mu, A, I     # halting exception
+    mu.m.extend(bytes((mu.i-mu_iprev)*32))
+  ret = int.from_bytes(mu.m[mus0:mus0+32],'big')
+  #print("MLOAD",ret,mu.m[mus0:mus0+32].hex())
+  mu.s.append(ret)
+  return sigma,mu,A,I
+
+def MSTORE(sigma,mu,A,I):
+  mus0 = mu.s.pop()     # mem offset
+  mus1 = mu.s.pop()     # word to store
+  # extend memory if necessary
+  mu_iprev = mu.i
+  mu.i = max(mu.i,-1*((-1*(mus0+32))//32))
+  if mu_iprev<mu.i:
+    mu.g = mu.g - (C_memory(mu.i)-C_memory(mu_iprev))
+    if mu.g<0:
+      return {}, mu, A, I     # halting exception
+    mu.m.extend(bytes((mu.i-mu_iprev)*32))
+  mus1bytes = mus1.to_bytes(32,'big')
+  #print("MSTORE",mus0,hex(mus1))
+  mu.m[mus0:mus0+32] = mus1bytes
+  return sigma,mu,A,I
+
+def MSTORE8(sigma,mu,A,I):
+  mus0 = mu.s.pop()
+  mus1 = mu.s.pop()
+  # extend memory if necessary
+  mu_iprev = mu.i
+  mu.i = max(mu.i,-1*((-1*(mus0+1))//32))
+  print("MSTORE8",mu.i,mu_iprev)
+  if mu_iprev<mu.i:
+    mu.g = mu.g - (C_memory(mu.i)-C_memory(mu_iprev))
+    if mu.g<0:
+      return {}, mu, A, I     # halting exception
+    mu.m.extend(bytes((mu.i-mu_iprev)*32))
+  mu.m[mus0] = mus1%256
+  return sigma,mu,A,I
+
+def SLOAD(sigma,mu,A,I):
+  mus0 = mu.s.pop()
+  mus0bytes = mus0.to_bytes(32,'big')
+  if mus0bytes in sigma[I.a].storage:
+    mu.s.append(int.from_bytes(sigma[I.a].storage[mus0bytes],'big'))
+  else:
+    mu.s.append(0)
+  return sigma,mu,A,I
+  
+def SSTORE(sigma,mu,A,I):
+  mus0 = mu.s.pop()     # key
+  mus1 = mu.s.pop()     # value
+  #print("SSTORE",mus0,mus1)
+  mus0bytes = mus0.to_bytes(32,'big')
+  mus1bytes = mus1.to_bytes(32,'big')
+  print("SSTORE",mus0bytes.hex(),mus1bytes.hex())
+  #print("SSTORE",sigma[I.a].storage)
+  if mus0bytes in sigma[I.a].storage:
+    oldval = int.from_bytes(sigma[I.a].storage[mus0bytes],'big')
+  else:
+    oldval = 0
+  def C_SSTORE(sigma,mu):
+    if mus1!=0 and oldval==0:
+      return G["sset"]
+    else:
+      return G["sreset"]
+  #print("SSTORE",C_SSTORE(sigma,mu))
+  mu.g = mu.g - C_SSTORE(sigma,mu)
+  if mu.g<0:
+    return {}, mu, A, I     # out-of-gas exception
+  if mus1==0 and oldval!=0:
+    A.r += R["sclear"]
+  #print(I.a,mus0bytes,mus1bytes)
+  # if zero, then delete existing slot if exists
+  if mus1!=0:
+    sigma[I.a].storage[mus0bytes] = mus1bytes
+  else:
+    if mus0bytes in sigma[I.a].storage:
+      del sigma[I.a].storage[mus0bytes]
+  return sigma,mu,A,I
+  
+def JUMP(sigma,mu,A,I):
+  def J_JUMP(mu):
+    mus0 = mu.s.pop()
+    mu.pc = mus0
+  J_JUMP(mu)
+  # note: JUMPDEST check done in Z()
+  return sigma,mu,A,I
+
+def JUMPI(sigma,mu,A,I):
+  def J_JUMPI(mu):
+    mus0 = mu.s.pop()
+    mus1 = mu.s.pop()
+    if mus1!=0:
+      mu.pc = mus0
+    else:
+      mu.pc = mu.pc+1
+  J_JUMPI(mu)
+  # note: JUMPDEST check done in Z()
+  return sigma,mu,A,I
+
+def PC(sigma,mu,A,I):
+  mu.s.append(mu.pc)
+  return sigma,mu,A,I
+
+def MSIZE(sigma,mu,A,I):
+  mu.s.append(32*mu.i)
+  return sigma,mu,A,I
+
+def GAS(sigma,mu,A,I):
+  mu.s.append(mu.g)
+  return sigma,mu,A,I
+
+def JUMPDEST(sigma,mu,A,I):
+  # do nothing during execution
+  return sigma,mu,A,I
+
+def PUSHn(sigma,mu,A,I):
+  # c() returns the immediates, or 0 if overflow code
+  def c(x):
+    if x<len(I.b):
+      return I.b[x]
+    else:
+      return 0
+  n = I.b[mu.pc]-0x60+1
+  immediate = int.from_bytes(bytes([c(mu.pc+i+1) for i in range(n)]),'big')
+  mu.s.append(immediate)
+  # note: PC incremented by N()
+  return sigma,mu,A,I
+
+def DUPn(sigma,mu,A,I):
+  n = I.b[mu.pc]-0x7f
+  val = mu.s[-1*n]          # note: check for underflow done in Z() in section 9.4.2
+  mu.s.append(val)
+  return sigma,mu,A,I
+
+def SWAPn(sigma,mu,A,I):
+  n = I.b[mu.pc]-0x8e
+  tmp = mu.s[-1]            # note: check for underflow done in Z() in section 9.4.2
+  mu.s[-1] = mu.s[-1*n]     # note: check for underflow done in Z() in section 9.4.2
+  mu.s[-1*n] = tmp
+  return sigma,mu,A,I
+
+def LOGn(sigma,mu,A,I):
+  n = I.b[mu.pc]-0xa0
+  mus0 = mu.s.pop()
+  mus1 = mu.s.pop()
+  # update memory if overflow
+  mu_iprev = mu.i
+  mu.i = M_(mu.i,mus0,mus1)
+  if mu_iprev<mu.i:
+    mu.g = mu.g - (C_memory(mu.i)-C_memory(mu_iprev))
+    if mu.g<0:
+      return {}, mu, A, I     # halting exception
+    mu.m.extend(bytes((mu.i-mu_iprev)*32))
+  bytes_to_append = I.a[:]
+  for i in range(n):
+    bytes_to_append += mu.s.pop().to_bytes(32,'big')
+  bytes_to_append += mu.m[mus0:mus0+mus1]
+  A.l += [bytes_to_append]
+  return sigma,mu,A,I
+
+def CREATE(sigma,mu,A,I):
+  mus0 = mu.s.pop()     # value
+  mus1 = mu.s.pop()     # input offset
+  mus2 = mu.s.pop()     # input size
+  # update memory if overflow
+  mu_iprev = mu.i
+  mu.i = M_(mu.i,mus1,mus2)
+  if mu_iprev<mu.i:
+    mu.g = mu.g - (C_memory(mu.i)-C_memory(mu_iprev))
+    if mu.g<0:
+      return {}, mu, A, I     # halting exception
+    mu.m.extend(bytes((mu.i-mu_iprev)*32))
+  # prepare calldata(?)
+  i = mu.m[mus0:mus1+mus2]
+  # create contract
+  if mus0<=sigma[I.a].b and I.e<1024:
+    sigmaprime, mu.g, Aplus, o = Lambda(sigma, I.a, I.o, L(mu.g), I.p, mus0, i, I.e+1, I.w, I.H, I.recentblocks)
+  else:
+    sigmaprime, mu.g, Aplus = sigma, mu.g, A0()
+  # update A, the accrued transaction substate
+  A.s = A.s.union(Aplus)
+  A.l = A.l+Aplus.l
+  A.t = A.t.union(Aplus.t)
+  A.r += Aplus.r
+  # push new acount's address x to stack, where x is defined as...
+  if sigmaprime=={} or I.e==1024 or mus0>sigma[I.a].b: # note: are error conditions checked here or in Lambda?
+    x = bytes([0]*20)
+  else:
+    nonce = sigmaprime[I.a].n
+    x = KEC(RLP([I.a,nonce]))[12:32] #A(I.a + nonce.to_bytes(((nonce+7)/8,"big")) # note: this A() is implicitly defined and has a name collision with a function in appendix F.  check this, since in Lambda, address is 
+  mu.s.append(int.from_bytes(x,"big"))
+  # returndata mu.o is empty
+  mu.o = bytearray([])
+  return sigmaprime,mu,A,I
+
+def CALL(sigma,mu,A,I):
+  return _CALL(sigma,mu,A,I,"CALL")
+
+def CALLCODE(sigma,mu,A,I,opcode):
+  return _CALL(sigma,mu,A,I,"CALLCODE")
+
+# this function _CALL is called by all CALL* opcodes. _CALL is not defined in the spec, but the idea that they mostly share code is in the definition of the CALL* opcodes.
+def _CALL(sigma,mu,A,I,opcode):
+  mus0 = mu.s.pop()   # used to compute C_GASCAP
+  mus1 = mu.s.pop()   # to address  
+  mus2 = mu.s.pop()   # value transfered
+  mus3 = mu.s.pop()   # start of calldata in mem
+  mus4 = mu.s.pop()   # length of calldata in mem
+  mus5 = mu.s.pop()   # start of returndata in mem
+  mus6 = mu.s.pop()   # length of returndata in mem
+
+  # functions needed to compute gas
+  def C_CALL(sigma,mu):
+    return C_GASCAP(sigma,mu)+C_EXTRA(sigma,mu)
+  def C_CALLGAS(sigma,mu):
+    if mus2!=0:
+      return C_GASCAP(sigma,mu)+G["callstipend"]
+    else:
+      return C_GASCAP(sigma,mu)
+  def C_GASCAP(sigma,mu):
+      if mu.g>=C_EXTRA(sigma,mu):
+        return min(L(mu.g-C_EXTRA(sigma,mu)),a0)
+      else:
+        return a0
+  def C_EXTRA(sigma,mu):
+    return G["call"] + C_XFER(mu) + C_NEW(sigma,mu)
+  def C_XFER(mu):
+    if mus2!=0:
+      return G["callvalue"]
+    else:
+      return 0
+  def C_NEW(sigma,mu):
+    if DEAD(sigma, (a1 % 2**160).to_bytes(20,'big')) and a2!=0:
+      return G['newaccount']
+    else:
+      return 0
+  
+  # 1. check if out-of-gas
+  mu_iprev = mu.i
+  mu.i = M_(M_(mu.i,mus3,mus4),mus5,mus6)
+  mu.g = mu.g - (C_memory(mu.i)-C_memory(mu_iprev)+C_CALL(sigma,mu))
+  if mu.g<0:
+    return {}, mu, A, I     # halting exception
+
+  # 2. prepare to call
+  # 2.1 update memory size if overflow
+  if mu_iprev<mu.i:
+    mu.m.extend(bytes((mu.i-mu_iprev)*32))
+  # 2.2 calldata
+  i = mu.m[mus3:mus3+mus4]
+  # 2.3 recipient
+  t = (mus1 % 2**160).to_bytes(20,'big')
+
+  # 3. call
+  if mus2<=sigma[I.a].b and I.e<1024:
+    if opcode=='CALL':
+      simgaprime, gprime, Aplus, o = Omega(sigma,I.a,I.o,t,t,C_CALLGAS(mu),I.p,a2,a2,i,I.e+1,I.w,I.H,I.recentblocks)
+    elif opcode=='CALLCODE':
+      simgaprime, gprime, Aplus, o = Omega(sigma,I.a,I.o,I.a,t,C_CALLGAS(mu),I.p,a2,a2,i,I.e+1,I.w,I.H,I.recentblocks)
+  else:
+    simgaprime, gprime, Aplus, o = sigma, g, A0(), bytearray([])
+
+  # 4. finalize stuff
+  # 4.1 write returndata to memory
+  n = min(mus6,len(o))
+  muprime.m[mus5:mus5+n] = o[0:n]
+  # 4.2 get returndata to machine state
+  muprime.o = o
+  # 4.3 increment gas used
+  muprime.g = mu.g+gprime   # note: maybe should check out-of-gas
+  # 4.3 push return code to stack
+  if simgaprime=={} or mus2>sigma[I.a].b or I.e==1024:  # note: maybe should also check for exceptional halting from 9.4.2
+    x=0
+  else:
+    x=1
+  mu.s.append(x)
+  # 4.4 update accrued transaction substate
+  Aprime = A0()
+  Aprime.s = A.s.union(Aplus)
+  Aprime.l = A.l+Aplus.l
+  Aprime.t = A.t.union(Aplus.t)
+  Aprime.r += Aplus.r
+  return sigmaprime,muprime,Aprime,I
+
+def RETURN(sigma,mu,A,I):
+  mus0 = mu.s.pop()     # memory offset
+  mus1 = mu.s.pop()     # length
+  # update memory if overflow
+  mu_iprev = mu.i
+  mu.i = M_(mu.i,mus0,mus1)
+  if mu_iprev<mu.i:
+    mu.g = mu.g - (C_memory(mu.i)-C_memory(mu_iprev))
+    if mu.g<0:
+      return {}, mu, A, I     # halting exception
+    mu.m.extend(bytes((mu.i-mu_iprev)*32))
+  def H_RETURN(mu):
+    return mu.m[mus0:mus0+mus1]
+  mu.o = H_RETURN(mu)   # set mu.o here, since H() is called before RETURN opcode is executed
+  #print("RETURN",mu.o.hex())
+  return sigma,mu,A,I
+
+# not in frontier
+def REVERT(sigma,mu,A,I):
+  mus0 = mu.s.pop()     # memory offset
+  mus1 = mu.s.pop()     # length
+  # update memory if overflow
+  mu_iprev = mu.i
+  mu.i = M_(mu.i,mus0,mus1)
+  if mu_iprev<mu.i:
+    mu.g = mu.g - (C_memory(mu.i)-C_memory(mu_iprev))
+    if mu.g<0:
+      return {}, mu, A, I     # halting exception
+    mu.m.extend(bytes((mu.i-mu_iprev)*32))
+  mu.o = mu.m[mus0:mus0+mus1]   # H_RETURN(mu) in yellowpaper
+  return sigma,mu,A,I
+
+# not in frontier
+def INVALID(sigma,mu,A,I):
+  return sigma,mu,A,I
+
+"""
+7f ff10112233445566778899aabbccddeeff00112233445566778899aabbccddee
+ff
+60 03
+55
+"""
+
+def SELFDESTRUCT(sigma,mu,A,I):
+  mus0 = mu.s.pop()     # address that gets remaining balance
+  r = (mus0%2**160).to_bytes(20,'big')
+
+  if I.a not in A.s:
+    A.r += R["selfdestruct"]   # in a later fork, this is done in function Upsilon
+
+  A.s = A.s.union(I.a)
+
+  if r in sigma:
+    sigma[r] = Account(sigma[r].n, sigma[r].b+sigma[I.a].b, sigma[r].s, sigma[r].c, b'', StateTree(), r)
+  else:
+    sigma[r] = Account(0, sigma[I.a].b, TRIE({}), KEC(b''), b'', StateTree(), r)
+
+  print("SELFDESTRUCT", I.a.hex())
+  del sigma[I.a]
+  #sigma[I.a].b = 0
+
+  return sigma,mu,A,I
+  
+  """ this is a newer version, untested
+  # check gas
+  def C_SELFDESTRUCT(sigma,mu):
+    n=DEAD(sigma,r)
+    ret=G["selfdestruct"]
+    if n:
+      ret+=G["newaccount"]
+    return ret
+  mu.g = mu.g - C_SELFDESTRUCT(sigma,mu)
+  if mu.g<0:
+    return {}, mu, A, I     # error
+  # done checking gas
+  A.s = A.s.union(I.a)
+  sigmaprime = sigma
+  if r not in sigma and sigma[I.a].b==0:
+    del sigmaprime[r]
+  elif r!=I.a:
+    sigmaprime[r] = Account(sigma[r].n, sigma[r].b+sigma[I.a].b, sigma[r].s, sigma[r].c, b'', StateTree(), r)
+  else:
+    sigmaprime[r] = Account(sigma[r].n, 0, sigma[r].s, sigma[r].c, b'', StateTree(), r)
+  sigmaprime[I.a].b=0
+  return sigma,mu,A,I
+  """
+
 
 
