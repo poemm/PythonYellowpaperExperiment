@@ -2857,3 +2857,25 @@ def genesis_block_and_state(filename,state):
   
 
 
+###########################
+# Appendix J. 
+
+def PoW(H,H_n,d):
+  # TODO
+  return 0,b''
+
+
+
+###########################
+# Appendix K. 
+# see discussion: https://github.com/ethereum/EIPs/issues/716
+
+
+
+
+
+
+
+
+if __name__ == "__main__":
+  test_block_46147_transaction() # seems to 
