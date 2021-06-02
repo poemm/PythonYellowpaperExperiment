@@ -2830,4 +2830,30 @@ EVM_opcodes = {
 }
 
 
+###########################
+# Appendix I. Genesis Block
+
+def genesis_block_and_state(filename,state):
+  stream = open(filename, 'r')
+  accts = json.loads(stream.read())
+  stream.close()
+  accts = accts["alloc"]
+  for addyhex in accts:
+    balance = int(accts[addyhex]["balance"])
+    account = Account(0, #nonce
+                      balance,
+                      bytes.fromhex("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"), # empty state tree root
+                      bytes.fromhex("c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"), # empty code codeHash
+                      bytes([]),
+                      None,
+                      bytes.fromhex(addyhex))
+    #print(addyhex,account.b)
+    #state[KEC(bytes.fromhex(addyhex))] = account
+    state[bytes.fromhex(addyhex)] = account
+  #stateRoot = state.merkleize()
+  genesis_block = None #Block(bytes([0]*32),KEC(RLP(())),bytes([0]*20),stateRoot,0,0,bytes([0])*256,2**17,0,0,3141592,0,0,bytes([0]*32),KEC(bytes([42]),(),()))
+  # note: not sure how values () will RLP-ize
+  return state,genesis_block
+  
+
 
